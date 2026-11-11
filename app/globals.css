@@ -60,8 +60,6 @@ html,body{height:100%;overflow:hidden}.app-shell{overflow:clip}.color-field .hex
 @font-face{font-family:ArcaneWenkai;src:url('../fonts/lxgw-wenkai.woff2') format('woff2');font-style:normal;font-weight:400;font-display:swap}
 @font-face{font-family:ArcaneRounded;src:url('../fonts/qingke-huangyou.woff2') format('woff2');font-style:normal;font-weight:400;font-display:swap}
 @font-face{font-family:ArcaneCursive;src:url('../fonts/liu-jian-mao-cao.woff2') format('woff2');font-style:normal;font-weight:400;font-display:swap}
-@font-face{font-family:ArcaneSerif;src:url('../fonts/noto-serif-sc-bold.woff2') format('woff2');font-style:normal;font-weight:700;font-display:swap}
-@font-face{font-family:ArcaneSans;src:url('../fonts/noto-sans-sc-bold.woff2') format('woff2');font-style:normal;font-weight:700;font-display:swap}
 @media(max-width:800px){.highlight-row .color-field{grid-template-columns:minmax(0,1fr) 26px 80px}.highlight-row .color-field .hex-input,.local-color .color-field .hex-input,.decoration-colors .hex-input,.selected-decoration .hex-input{font-size:16px!important;width:80px;min-height:40px}.local-color{width:115px}.local-color .color-field{grid-template-columns:26px 80px}.decoration-colors .color-field,.selected-decoration .color-field{grid-template-columns:1fr 30px 80px}}
 
 /* Major-realm navigation and the read-only continental bestiary. */

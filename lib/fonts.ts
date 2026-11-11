@@ -7,6 +7,9 @@ export async function loadFonts(s:Settings){
  const families=new Set(['ArcaneSerif',(chineseFonts.find(f=>f.id===s.titleFont)||chineseFonts[0]).family,(chineseFonts.find(f=>f.id===s.font)||chineseFonts[0]).family,(latinFonts.find(f=>f.id===s.latinFont)||latinFonts[0]).family]);
  function visit(node:{marks?:{attrs?:Record<string,unknown>}[];content?:unknown[]}){for(const mark of node.marks||[]){const stack=String(mark.attrs?.fontFamily||'');for(const f of [...chineseFonts,...latinFonts])if(stack.includes(f.family))families.add(f.family);}for(const child of node.content||[])visit(child as typeof node);}
  if(s.richText)visit(s.richText);
- const results=await Promise.all([...families].flatMap(family=>[400,700].map(weight=>document.fonts.load(`${weight} 20px "${family}"`,chineseFonts.some(f=>f.family===family)?'群星森林':'Echoes'))));
- if(results.some(fonts=>fonts.length===0))throw Error('Font unavailable');
+ const requested=[...families].map(family=>document.fonts.load(`400 20px "${family}"`,chineseFonts.some(f=>f.family===family)?'群星森林':'Echoes'));
+ await Promise.race([
+  Promise.allSettled(requested),
+  new Promise<void>(resolve=>setTimeout(resolve,6000)),
+ ]);
 }
