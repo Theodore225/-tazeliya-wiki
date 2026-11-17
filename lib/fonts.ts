@@ -14,9 +14,12 @@ function loadFamily(family:string){
  });
  loadedFamilies.set(family,pending);void pending.catch(()=>{if(loadedFamilies.get(family)===pending)loadedFamilies.delete(family);});return pending;
 }
-export async function loadFonts(s:Settings){
+export function requiredFontFamilies(s:Settings){
  const families=new Set([(chineseFonts.find(f=>f.id===s.titleFont)||chineseFonts[0]).family,(chineseFonts.find(f=>f.id===s.font)||chineseFonts[0]).family,(latinFonts.find(f=>f.id===s.latinFont)||latinFonts[0]).family]);
  function visit(node:{marks?:{attrs?:Record<string,unknown>}[];content?:unknown[]}){for(const mark of node.marks||[]){const stack=String(mark.attrs?.fontFamily||'');for(const f of [...chineseFonts,...latinFonts])if(stack.includes(f.family))families.add(f.family);}for(const child of node.content||[])visit(child as typeof node);}
  if(s.richText)visit(s.richText);
- await Promise.all([...families].map(loadFamily));
+ return [...families].sort();
 }
+
+export const fontRequirementKey=(s:Settings)=>requiredFontFamilies(s).join("|");
+export async function loadFonts(s:Settings){await Promise.all(requiredFontFamilies(s).map(loadFamily));}

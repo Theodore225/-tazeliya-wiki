@@ -5,6 +5,7 @@ import {backgroundArt,mark} from './world-art';
 import {worlds} from './worlds';
 import {bodyBlocks,fromPlainText,isProfileField,profileTitles,type RichNode,type LocalStyle,type StyledText,type ContentMode} from './rich-text';
 import {paperFrame} from './paper-frame';
+import {paintPaperTexture} from './paper-texture';
 import {decodedImage} from './images';
 import type {Drafts} from './drafts';
 export type Settings = { theme:string; font:string; latinFont:string; size:number; leading:number; ornament:string; paper:string; indent:boolean; title:string; subtitle:string; author:string; text:string; country:string; backgroundColor:string; textColor:string; accentColor:string; pattern:string; crest:string; elements:string[]; decorations?:Decoration[]; titleFont:string; borderBandFill:boolean; borderOpacity:number;patternOpacity:number;patternScale?:number;patternX?:number;patternY?:number; worldArtVersion?:number; richText?:RichNode; contentMode:ContentMode; templateImported:boolean; documents?:Drafts; borderColor:string; motifColor:string; borderFill:boolean; motifFill:boolean; crestOpacity?:number;crestFill?:boolean;crestFillColor?:string;borderFillColor?:string;motifFillColor?:string;treeOuterStars?:boolean;crestStarOuterDiamonds?:boolean;crestStarDiamondColor?:string;patternStarOuterDiamonds?:boolean;patternStarDiamondColor?:string };
@@ -112,8 +113,8 @@ export function paintSheet(c:CanvasRenderingContext2D,m:Manuscript,sheet:Sheet,c
  c.fillStyle=bg;c.fillRect(0,0,W,H);
  if(s.paper!=='white'){
  const g=c.createLinearGradient(0,0,W,0);g.addColorStop(0,dark(bg)?'#00000022':'#553c2115');g.addColorStop(.5,'#ffffff08');g.addColorStop(1,dark(bg)?'#00000022':'#553c2115');c.fillStyle=g;c.fillRect(0,0,W,H);
- let seed=71+Math.floor(clipTop)*13;for(let i=0;i<Math.ceil(clipHeight*14);i++){seed=(seed*16807)%2147483647;const x=seed%W;seed=(seed*16807)%2147483647;const yy=clipTop+seed%Math.ceil(clipHeight);c.fillStyle=i%2?'#64503409':'#ffffff12';c.fillRect(x,yy,s.paper==='linen'?2:1,s.paper==='linen'?.5:1);}
- if(s.paper==='linen'){c.strokeStyle='#ffffff09';c.lineWidth=.5;for(let x=0;x<W;x+=4)line(x,clipTop,x,clipTop+clipHeight);for(let yy=Math.floor(clipTop/4)*4;yy<clipTop+clipHeight;yy+=4)line(0,yy,W,yy);}
+ if(!paintPaperTexture(c,s.paper,W,clipTop,clipHeight)){let seed=71+Math.floor(clipTop)*13;for(let i=0;i<Math.ceil(clipHeight*14);i++){seed=(seed*16807)%2147483647;const x=seed%W;seed=(seed*16807)%2147483647;const yy=clipTop+seed%Math.ceil(clipHeight);c.fillStyle=i%2?'#64503409':'#ffffff12';c.fillRect(x,yy,s.paper==='linen'?2:1,s.paper==='linen'?.5:1);}
+ if(s.paper==='linen'){c.strokeStyle='#ffffff09';c.lineWidth=.5;for(let x=0;x<W;x+=4)line(x,clipTop,x,clipTop+clipHeight);for(let yy=Math.floor(clipTop/4)*4;yy<clipTop+clipHeight;yy+=4)line(0,yy,W,yy);}}
  }
  backgroundArt(c,s.pattern,[],W,H,s.motifColor||accent,s.patternOpacity??.08,clipTop,clipHeight,s.motifFill,s.motifFillColor||bg,s.treeOuterStars??true,s.patternStarOuterDiamonds??true,s.patternStarDiamondColor,{scale:s.patternScale,x:s.patternX,y:s.patternY});
  for(const e of s.decorations||legacyDecorations(s.elements,s.motifColor||accent,s.motifFill)){const p=decorationPosition(e,W,H);if(p.y+p.size<clipTop||p.y-p.size>clipTop+clipHeight)continue;c.save();c.globalAlpha=e.opacity??1;c.strokeStyle=e.color;c.fillStyle=e.fillColor||bg;mark(c,e.motif,p.x,p.y,p.size/2,e.solid,e.treeOuterStars??true,e.starOuterDiamonds??true,e.starDiamondColor);c.restore();}

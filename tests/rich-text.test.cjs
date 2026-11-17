@@ -238,9 +238,39 @@ test('orphanage defaults to no crest, removed house art cannot be restored by ol
 test('background transforms clamp invalid input and apply the same layout to full and clipped long-image painting',()=>{
  const art=require('../lib/world-art.ts');assert.deepEqual(art.backgroundTransform(),{scale:1,x:50,y:50});assert.deepEqual(art.backgroundTransform({scale:400,x:-1,y:NaN}),{scale:2,x:0,y:50});
  const scales=[],moves=[],c=context();c.scale=(...v)=>scales.push(v);c.translate=(...v)=>moves.push(v);
- art.backgroundArt(c,'cathedral',[],760,6000,'#123abc',.2,2000,512,false,'#ffffff',true,true,undefined,{scale:160,x:75,y:55});
+ art.backgroundArt(c,'cathedral',[],760,6000,'#123abc',.2,3000,512,false,'#ffffff',true,true,undefined,{scale:160,x:75,y:55});
  assert(scales.length>0);assert(scales.every(v=>v[0]===1.6&&v[1]===1.6));assert(moves.some(v=>v[0]===570));
  const s={...manuscript.defaults,patternScale:160,patternX:75,patternY:55};assert.deepEqual(JSON.parse(JSON.stringify(s)),s);
+});
+test('background draws exactly one composition on short and long sheets and never repeats in export tiles',()=>{
+ const art=require('../lib/world-art.ts');for(const height of [1075,12000]){
+  const positions=[],c=context();c.translate=(x,y)=>positions.push([x,y]);
+  art.backgroundArt(c,'cathedral',[],760,height,'#123abc',.2);assert.equal(positions.filter(v=>v[0]===380).length,1);assert(positions.some(v=>v[0]===380&&v[1]===height/2));
+  positions.length=0;for(let top=0;top<height;top+=512)art.backgroundArt(c,'cathedral',[],760,height,'#123abc',.2,top,Math.min(512,height-top));
+  assert(positions.filter(v=>v[0]===380).every(v=>v[1]===height/2));
+  positions.length=0;art.backgroundArt(c,'cathedral',[],760,height,'#123abc',0);assert.equal(positions.length,0);
+ }
+});
+test('extended colors preserve exact RGB round trips and clamp HSL boundaries',()=>{
+ const color=require('../lib/color.ts');for(const p of color.colorPresets)assert.equal(color.hslToHex(color.hexToHsl(p.hex)),p.hex);
+ for(let i=0;i<1000;i++){const hex='#'+(i*15467%16777216).toString(16).padStart(6,'0');assert.equal(color.hslToHex(color.hexToHsl(hex)),hex);}
+ assert.equal(color.normalizeHex('#AbC'),'#aabbcc');assert.equal(color.normalizeHex('wrong'),null);
+ assert.equal(color.hslToHex({h:360,s:100,l:50}),'#ff0000');assert.equal(color.hslToHex({h:42,s:150,l:120}),'#ffffff');assert.equal(color.hslToHex({h:-60,s:100,l:50}),'#ff00ff');
+ assert(color.colorPresets.some(p=>p.name==='克莱因蓝'&&p.hex==='#002fa7'));
+});
+test('preview reuses wrapping for color/position changes and renders only requested pages without encoding PNG',()=>{
+ const {PagePreview}=require('../lib/preview.ts'),oldDocument=global.document;let created=0,encoded=0;
+ try{global.document={createElement(){created++;const canvas={width:0,height:0,setAttribute(){},toDataURL(){encoded++;throw Error('preview must not encode PNG')},getContext(){const c=context();c.canvas=canvas;return c;}};return canvas;}};
+ const s={...manuscript.defaults,paper:'white',crest:'none',ornament:'none',decorations:[],text:'长段落'.repeat(3000),richText:undefined};const preview=new PagePreview();const first=preview.update(s,1);assert(first.sheets.length>3);const afterLayout=created;const page=preview.page(0);assert.equal(created,afterLayout+1);assert.equal(page.width,760);assert.equal(preview.page(0),page);assert.equal(encoded,0);
+ const changed=preview.update({...s,motifColor:'#002fa7',patternX:73},1);assert.equal(changed.sheets,first.sheets);assert.equal(changed.s.motifColor,'#002fa7');assert.equal(page.width,0);
+ const beforePage=created;preview.page(2);assert.equal(created,beforePage+1);const revised=preview.update({...s,size:25},1);assert.notEqual(revised.sheets,first.sheets);const fonts=preview.update({...s,size:25},2);assert.notEqual(fonts.sheets,revised.sheets);preview.clearPages();
+ }finally{global.document=oldDocument;}
+});
+test('paper texture is cached across pages and uses fixed coordinates across export tiles',()=>{
+ const {paintPaperTexture}=require('../lib/paper-texture.ts'),oldDocument=global.document;let created=0,noise=0;const fills=[],sources=[];
+ try{global.document={createElement(){created++;return {width:0,height:0,getContext(){return {...context(),fillRect(){noise++}}}}}};const c={createPattern(tile,repeat){sources.push(tile);assert.equal(repeat,'repeat');return{}},fillRect(...args){fills.push(args)}};
+ paintPaperTexture(c,'parchment',760,0,512);const count=noise;paintPaperTexture(c,'parchment',760,512,512);assert.equal(created,1);assert.equal(noise,count);assert.equal(sources[0],sources[1]);assert.deepEqual(fills,[[0,0,760,512],[0,512,760,512]]);
+ }finally{global.document=oldDocument;}
 });
 test('active artwork plan excludes unused assets and ignores invisible decorations',()=>{
  const {motifRequirements}=require('../lib/motif-requirements.ts');
