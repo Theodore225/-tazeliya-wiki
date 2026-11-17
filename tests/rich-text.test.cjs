@@ -18,6 +18,16 @@ test('all three modes retain their own body, title, images and deleted fields wi
  s=drafts.switchDraft(s,'content');assert.equal(s.text,original);assert(!s.text.includes('人设表'));
  const saved=images.stripImageUrls(drafts.snapshotDrafts(s));assert(!JSON.stringify(saved).includes('blob:'));assert.equal(saved.documents.profile.richText.content.at(-1).attrs.assetId,'portrait');
 });
+
+test('rose variants preserve separate colors and ignore generic hollow-fill controls',async()=>{
+ const art=require('../lib/rose-art.ts');const oldImage=global.Image,oldDocument=global.document;
+ try{global.Image=class{async decode(){}};global.document={createElement(){return {width:0,height:0,getContext(){return {drawImage(){},fillRect(){},imageSmoothingEnabled:true}}}}};await art.prepareRoses();
+ const calls=[];const c={strokeStyle:'#123abc',fillStyle:'#ff0000',save(){},restore(){},drawImage(...args){calls.push(args)}};
+ motifs.drawMotif(c,'roses',0,0,30,false);motifs.drawMotif(c,'roses',0,0,30,true);assert.equal(calls.length,2);assert.equal(calls[0][0],calls[1][0]);
+ motifs.drawMotif(c,'roses2',0,0,30,false);assert.notEqual(calls[2][0],calls[0][0]);c.strokeStyle='#654321';motifs.drawMotif(c,'roses2',0,0,30,true);assert.notEqual(calls[3][0],calls[2][0]);
+ for(const [id,name] of [['roses','蔷薇1'],['roses2','蔷薇2']]){assert(motifs.motifOptions.some(m=>m.id===id&&m.name===name));assert.equal(decorations.normalizeDecoration({id,motif:id,x:50,y:50,size:80,color:'#123abc',solid:true}).motif,id);assert(require('node:fs').existsSync(require('node:path').join(__dirname,'..','public',id==='roses'?'rose-1.png':'rose-2.png')));}
+ }finally{global.Image=oldImage;global.document=oldDocument;}
+});
 test('legacy appended profile is separated from its story without losing formatted field values',()=>{
  const form=rich.profileTemplate('profile');form.content[1].content.push({type:'text',text:'旧角色',marks:[{type:'bold'}]});
  const old={...manuscript.defaults,contentMode:'profile',title:'人物档案',richText:{type:'doc',content:[...form.content,...rich.fromPlainText('原有故事').content]}};old.text=rich.toPlainText(old.richText);
@@ -28,7 +38,7 @@ test('image layout preserves document order, aspect ratio and bounds in pages an
  const doc={type:'doc',content:[...rich.fromPlainText('前文'.repeat(1600)).content,{type:'image',attrs:{src:'blob:test',width:600,height:1800,widthPercent:75,alignment:'right'}},...rich.fromPlainText('最后一段').content]};
  for(const mode of ['pages','long']){const m=manuscript.layoutManuscript({...manuscript.defaults,richText:doc},mode);const runs=m.sheets.flatMap(p=>p.runs);const img=runs.find(r=>r.image);assert(img);assert(Math.abs(img.image.height/img.image.width-3)<.0001);assert(Math.abs(img.x+img.image.width-666)<.0001);assert(runs.indexOf(img)<runs.findIndex(r=>r.text==='最后一段'));if(mode==='pages'){const sheet=m.sheets.find(p=>p.runs.includes(img));assert(img.y>=115);assert(img.y+img.image.height<=975);}else{assert(m.sheets[0].height>1075);assert(img.y+img.image.height<m.sheets[0].height-90);}}
 });
-test('every drawn motif is a deliberate closed vector silhouette while dragon uses recolorable masks from the supplied raster',()=>{assert.equal(new Set(motifs.motifOptions.map(m=>m.id)).size,motifs.motifOptions.length);for(const option of motifs.motifOptions.filter(({id})=>id!=='dragon')){const paths=motifs.motifPaths[option.id];assert(paths.length);for(const d of paths)assert(/Z$/.test(d));}assert.equal(motifs.rasterMotifAssets.dragonInk,'./dragon-head-ink.png');assert.equal(motifs.rasterMotifAssets.dragonHighlight,'./dragon-head-highlight.png');});
+test('every drawn motif is a deliberate closed vector silhouette while dragon uses recolorable masks from the supplied raster',()=>{assert.equal(new Set(motifs.motifOptions.map(m=>m.id)).size,motifs.motifOptions.length);for(const option of motifs.motifOptions.filter(({id})=>!['dragon','tree','roses','roses2','vines'].includes(id))){const paths=motifs.motifPaths[option.id];assert(paths.length);for(const d of paths)assert(/Z$/.test(d));}assert.equal(motifs.rasterMotifAssets.dragonInk,'./dragon-head-ink.png');assert.equal(motifs.rasterMotifAssets.dragonHighlight,'./dragon-head-highlight.png');});
 test('local bold, color, italic and font survive both pagination and long-image layout',()=>{const fragment=[{type:'text',text:'星辰🌙',marks:[{type:'bold'},{type:'textStyle',attrs:{color:'#C23A53',fontFamily:'"ArcaneBrush", serif'}}]},{type:'text',text:'与森林 Avery',marks:[{type:'italic'}]}];const richText={type:'doc',content:[{type:'paragraph',content:Array.from({length:350},()=>fragment).flat()}]};const text=rich.toPlainText(richText);for(const mode of ['pages','long']){const result=manuscript.layoutManuscript({...manuscript.defaults,title:'TITLE',subtitle:'',text,richText},mode);const runs=result.sheets.flatMap(s=>s.runs).filter(r=>!['TITLE','__separator__'].includes(r.text));assert.equal(runs.map(r=>r.text).join(''),text);assert(runs.some(r=>r.bold&&r.color==='#c23a53'&&r.fontFamily.includes('ArcaneBrush')));assert(runs.some(r=>r.italic));if(mode==='long'){assert.equal(result.sheets.length,1);assert(result.sheets[0].height>1075);}else assert(result.sheets.length>1);for(const sheet of result.sheets)for(const run of sheet.runs)assert(run.y<sheet.height-90);}});
 test('explicit selected color wins over quote color and is painted at full opacity',()=>{const richText={type:'doc',content:[{type:'blockquote',content:[{type:'paragraph',content:[{type:'text',text:'红色引文',marks:[{type:'bold'},{type:'textStyle',attrs:{color:'rgb(34, 85, 136)'}}]}]}]}]};const s={...manuscript.defaults,title:'TITLE',subtitle:'',ornament:'none',crest:'none',paper:'white',elements:[],richText};const m=manuscript.layoutManuscript(s);const c=context();manuscript.paintSheet(c,m,m.sheets[0]);const painted=c.calls.find(r=>r.text==='红色引文');assert.equal(painted.color,'#225588');assert.equal(painted.alpha,1);assert(painted.font.startsWith('700 '));assert.equal(rich.opaqueColor('#abc'),'#aabbcc');});
 const decorations=require('../lib/decorations.ts');const frame=require('../lib/paper-frame.ts');
@@ -44,7 +54,7 @@ test('double-line band uses an even-odd hole and fills independently of corner o
  for(const {id} of motifs.borderOptions.filter(o=>o.id!=='none')){const d=frame.frameBandPath(id,760,1075);assert.equal((d.match(/M/g)||[]).length,2);assert.equal((d.match(/Z/g)||[]).length,2);const c=context(),fills=[];c.fill=function(path,rule){fills.push({path,rule,color:this.fillStyle})};frame.paperFrame(c,id,760,1075,'#536b59',false,true);assert(fills.some(f=>f.rule==='evenodd'&&f.color==='#536b59'&&f.path.d===d));const empty=context(),hollow=[];empty.fill=(...args)=>hollow.push(args);frame.paperFrame(empty,id,760,1075,'#536b59',false,false);assert.equal(hollow.length,0);}
 });
 test('free elements paint their exact individual color and size and title typography stays separate from body',()=>{
- const s={...manuscript.defaults,title:'TITLE',titleFont:'xiaowei',paper:'white',ornament:'none',crest:'none',pattern:'plain',elements:[],richText:rich.fromPlainText('正文'),decorations:[{id:'red',motif:'moon',x:20,y:30,size:120,color:'#af5265',solid:true},{id:'blue',motif:'crystal',x:83,y:71,size:80,color:'#225588',solid:true}]};
+ const s={...manuscript.defaults,title:'TITLE',titleFont:'xiaowei',paper:'white',ornament:'none',crest:'none',pattern:'plain',elements:[],richText:rich.fromPlainText('正文'),decorations:[{id:'red',motif:'moon',x:20,y:30,size:120,color:'#af5265',fillColor:'#af5265',solid:true},{id:'blue',motif:'crystal',x:83,y:71,size:80,color:'#225588',fillColor:'#225588',solid:true}]};
  for(const mode of ['pages','long']){const m=manuscript.layoutManuscript(s,mode),c=context(),fills=[],moves=[];c.fill=function(path,rule){fills.push({color:this.fillStyle,rule})};c.translate=(x,y)=>moves.push([x,y]);manuscript.paintSheet(c,m,m.sheets[0]);assert(fills.some(f=>f.color==='#af5265'));assert(fills.some(f=>f.color==='#225588'));assert(moves.some(([x,y])=>x===152&&y===m.sheets[0].height*.3));assert(m.sheets[0].runs.find(r=>r.text==='TITLE').fontFamily.includes('ArcaneXiaowei'));assert(!m.sheets[0].runs.find(r=>r.text==='正文').fontFamily);}
 });
 const worldsModule=require('../lib/worlds.ts');const navigation=require('../lib/navigation.ts');
@@ -56,7 +66,7 @@ test('highlights compose with bold, italic, selected fonts and exact text color 
  c.fillRect=function(x,y,w,h){rects.push({x,y,w,h,color:this.fillStyle,alpha:this.globalAlpha})};manuscript.paintSheet(c,m,m.sheets[0]);assert(rects.some(r=>r.color==='#ffff00'&&r.w>0&&r.h>0&&r.alpha===1));assert(c.calls.some(r=>r.text==='高亮'&&r.color==='#225588'&&r.font.includes('700 ')));
 });
 test('border, pattern and every element use independent opacity without fading text/highlights',()=>{
- const s={...manuscript.defaults,paper:'white',pattern:'astral',patternOpacity:.15,ornament:'geometric',borderColor:'#010203',borderBandFill:true,borderOpacity:.25,crest:'none',decorations:[{id:'one',motif:'moon',x:60,y:30,size:80,color:'#445566',solid:true,opacity:.6}],richText:{type:'doc',content:[{type:'paragraph',content:[{type:'text',text:'正常正文',marks:[{type:'highlight',attrs:{color:'#ffff00'}}]}]}]}};
+ const s={...manuscript.defaults,paper:'white',pattern:'astral',patternOpacity:.15,ornament:'geometric',borderColor:'#010203',borderFillColor:'#010203',borderBandFill:true,borderOpacity:.25,crest:'none',decorations:[{id:'one',motif:'moon',x:60,y:30,size:80,color:'#445566',fillColor:'#445566',solid:true,opacity:.6}],richText:{type:'doc',content:[{type:'paragraph',content:[{type:'text',text:'正常正文',marks:[{type:'highlight',attrs:{color:'#ffff00'}}]}]}]}};
  const m=manuscript.layoutManuscript(s),c=context(),fills=[],strokes=[],rects=[];
  c.fill=function(path,rule){fills.push({color:this.fillStyle,alpha:this.globalAlpha,rule})};c.stroke=function(path){strokes.push({color:this.strokeStyle,alpha:this.globalAlpha})};c.fillRect=function(x,y,w,h){rects.push({color:this.fillStyle,alpha:this.globalAlpha})};manuscript.paintSheet(c,m,m.sheets[0]);
  assert(fills.some(r=>r.color==='#010203'&&r.alpha===.25&&r.rule==='evenodd'));assert(fills.some(r=>r.color==='#445566'&&r.alpha===.6));assert(strokes.some(r=>r.alpha===.15));assert(c.calls.some(r=>r.text==='正常正文'&&r.alpha===1));assert(rects.some(r=>r.color==='#ffff00'&&r.alpha===1));
@@ -79,11 +89,11 @@ test('bestiary contains four canonical classes and eight original creatures, gro
  for(const group of creatureModule.creatureGroups){const keys=group.creatures.map(c=>c.sortKey);assert.deepEqual(keys,[...keys].sort((a,b)=>a.localeCompare(b,'en')));}
  assert.equal(creatureModule.creatures.find(c=>c.id==='nightfluff').name,'Nigntfluff（夜绒）');assert(creatureModule.creatures.find(c=>c.id==='blood-moon-jellyfish').paragraphs.some(p=>p.text.includes('下弦月时，时完全暴露')));assert.equal(creatureModule.sightingNote,'影像记录：此魔法生物尚未被成功目击');
 });
-test('wing and life-tree use detailed vectors while dragon uses the exact supplied image without a fill mode',()=>{
- for(const id of ['wing','tree']){assert(motifs.motifPaths[id].length);assert((motifs.motifStrokes[id]||[]).length>=4);}
+test('wing remains a detailed vector; supplied tree and dragon preserve their raster silhouettes',()=>{
+ for(const id of ['wing']){assert(motifs.motifPaths[id].length);assert((motifs.motifStrokes[id]||[]).length>=4);}
  assert.equal(motifs.motifPaths.dragon.length,0);assert.equal(motifs.motifStrokes.dragon.length,0);
  assert.equal(motifs.rasterMotifAssets.dragon,'./dragon-head-original.png');assert.equal(motifs.rasterMotifAssets.dragonInk,'./dragon-head-ink.png');
- assert(motifs.motifStrokes.tree.some(path=>!path.trim().endsWith('Z')));assert(motifs.motifOptions.some(m=>m.id==='home'));
+ assert.equal(motifs.motifPaths.tree.length,0);assert.equal(motifs.motifStrokes.tree.length,0);assert(motifs.motifOptions.some(m=>m.id==='home'));
 });
 const paste=require('../lib/paste.ts');
 test('multi-paragraph paste removes extra blank rows and inherited spacing without changing copy',()=>{
@@ -124,7 +134,7 @@ test('quote indentation is editable whitespace and survives plain-text round tri
  assert.equal(rich.needsQuoteIndent('引用'),true);
  for(const text of [' 引用','\u00a0引用','\u3000引用'])assert.equal(rich.needsQuoteIndent(text),false);
  const editor=fs.readFileSync(path.join(__dirname,'../components/rich-editor.tsx'),'utf8');
- assert(editor.includes("tr.insertText('\\u3000'"));
+ assert(editor.includes("tr.insertText('\\u3000\\u3000'"));
  assert(editor.includes('onClick={toggleQuote}'));
 });
 test('consecutive spaces wrap in place instead of moving together to the final visual line',()=>{
@@ -135,4 +145,42 @@ test('consecutive spaces wrap in place instead of moving together to the final v
  assert.equal(body.map(run=>run.text).join(''),text);
  assert(body[0].text.endsWith(' '),'the first fitting space remains on its original line');
  assert(body.some((run,index)=>index>0&&run.text.includes('乙')));
+});
+
+test('quote rules follow editable whitespace in page and long exports',()=>{
+ for(const mode of ['pages','long']){const layout=text=>manuscript.layoutManuscript({...manuscript.defaults,richText:rich.fromPlainText('>'+text)},mode).sheets.flatMap(p=>p.runs).find(r=>r.quote);
+ const flush=layout('引用正文'),indented=layout('\u3000\u3000引用正文'),spaces=layout('    引用正文');
+ assert.equal(indented.quoteX-flush.quoteX,40);assert.equal(indented.x-flush.x,40);assert(spaces.quoteX>flush.quoteX);assert.equal(indented.text,'引用正文');}
+});
+test('solid default follows paper, custom fill and title opacity do not affect body',()=>{
+ for(const fillColor of ['', '#123456']){const s={...manuscript.defaults,paper:'white',backgroundColor:'#eeeeee',crest:'moon',crestFill:true,crestOpacity:.3,crestFillColor:fillColor,pattern:'plain',ornament:'none',decorations:[],richText:rich.fromPlainText('正文')};const m=manuscript.layoutManuscript(s),c=context(),fills=[];c.fill=function(){fills.push({color:this.fillStyle,alpha:this.globalAlpha})};manuscript.paintSheet(c,m,m.sheets[0]);assert(fills.some(f=>f.color===(fillColor||'#eeeeee')&&f.alpha===.3));assert(c.calls.some(r=>r.text==='正文'&&r.alpha===1));}
+});
+
+test('life-tree variants persist individually and default to visible outer stars',()=>{
+ const old={id:'tree',motif:'tree',x:50,y:50,size:80,color:'#123456',solid:false};
+ assert.equal(decorations.normalizeDecoration(old).treeOuterStars,true);
+ const custom=decorations.normalizeDecoration({...old,treeOuterStars:false,solid:true,fillColor:'#abcdef'});
+ assert.equal(custom.treeOuterStars,false);assert.equal(custom.fillColor,'#abcdef');
+ assert.deepEqual(decorations.normalizeDecoration(JSON.parse(JSON.stringify(custom))),custom);
+ const assets=require('../lib/life-tree.ts').lifeTreeAssets;
+ for(const file of Object.values(assets))assert(fs.statSync(path.join(__dirname,'../public',file)).size>0);
+ assert.equal(manuscript.defaults.treeOuterStars,true);
+});
+
+test('laurel contour preserves transparent veins and silhouette while clearing leaf interiors',()=>{
+ const {laurelOutlineAlpha}=require('../lib/laurel-art.ts');const width=11,alpha=new Uint8ClampedArray(width*width);
+ for(let y=1;y<10;y++)for(let x=1;x<10;x++)alpha[y*width+x]=255;
+ alpha[5*width+5]=0;alpha[width+1]=128;
+ const outline=laurelOutlineAlpha(alpha,width,width,1);
+ assert.equal(outline[0],0);assert.equal(outline[width+1],128);assert.equal(outline[3*width+3],0);assert.equal(outline[5*width+5],0);assert.equal(outline[5*width+4],255);
+ for(let i=0;i<alpha.length;i++)assert(outline[i]<=alpha[i]);
+});
+test('laurel keeps legacy ids and draws independently colored solid and contour layers with matching bounds',async()=>{
+ const art=require('../lib/laurel-art.ts'),oldImage=global.Image,oldDocument=global.document,inks=[];
+ try{global.Image=class{async decode(){}};global.document={createElement(){return {width:0,height:0,getContext(){const c={drawImage(){},fillRect(){inks.push(c.fillStyle)},getImageData(){return {data:new Uint8ClampedArray(1024*1024*4)}},putImageData(){}};return c;}}}};await art.prepareLaurel();
+ const calls=[],c={strokeStyle:'#123abc',fillStyle:'#aabbcc',save(){},restore(){},drawImage(...args){calls.push(args)}};
+ motifs.drawMotif(c,'vines',30,40,50,false);assert.equal(calls.length,1);
+ motifs.drawMotif(c,'laurel',30,40,50,true);assert.equal(calls.length,3);assert.equal(calls[0][0],calls[2][0]);assert.notEqual(calls[1][0],calls[0][0]);assert.deepEqual(calls[1].slice(1),[-20,-10,100,100]);assert.deepEqual(calls[1].slice(1),calls[2].slice(1));assert(inks.includes('#aabbcc'));assert(inks.includes('#123abc'));
+ assert.equal(decorations.normalizeDecoration({id:'old',motif:'laurel',x:50,y:50,size:80,color:'#123abc',solid:true}).motif,'vines');assert(fs.existsSync(path.join(__dirname,'..','public',art.laurelAsset)));
+ }finally{global.Image=oldImage;global.document=oldDocument;}
 });

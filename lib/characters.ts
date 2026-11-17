@@ -53,4 +53,5 @@ export const chronicleCharacters: ChronicleCharacter[] = [
       { label: "备注", text: "冷静、强大、神秘——哪怕她只是站在那里便足以让无数冒险者热血沸腾！" },
     ],
   },
-].sort((a, b) => a.sortKey.localeCompare(b.sortKey, "en"));
+] satisfies ChronicleCharacter[];
+chronicleCharacters.sort((a, b) => a.sortKey.localeCompare(b.sortKey, "en"));

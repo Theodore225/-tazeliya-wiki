@@ -1,3 +1,4 @@
+import {quotePrefix} from './quote-layout';
 import {fontStack,titleFontStack} from './fonts';
 import {legacyDecorations,decorationPosition,type Decoration} from './decorations';
 import {backgroundArt,mark} from './world-art';
@@ -6,7 +7,7 @@ import {bodyBlocks,fromPlainText,isProfileField,profileTitles,type RichNode,type
 import {paperFrame} from './paper-frame';
 import {decodedImage} from './images';
 import type {Drafts} from './drafts';
-export type Settings = { theme:string; font:string; latinFont:string; size:number; leading:number; ornament:string; paper:string; indent:boolean; title:string; subtitle:string; author:string; text:string; country:string; backgroundColor:string; textColor:string; accentColor:string; pattern:string; crest:string; elements:string[]; decorations?:Decoration[]; titleFont:string; borderBandFill:boolean; borderOpacity:number;patternOpacity:number; worldArtVersion?:number; richText?:RichNode; contentMode:ContentMode; templateImported:boolean; documents?:Drafts; borderColor:string; motifColor:string; borderFill:boolean; motifFill:boolean };
+export type Settings = { theme:string; font:string; latinFont:string; size:number; leading:number; ornament:string; paper:string; indent:boolean; title:string; subtitle:string; author:string; text:string; country:string; backgroundColor:string; textColor:string; accentColor:string; pattern:string; crest:string; elements:string[]; decorations?:Decoration[]; titleFont:string; borderBandFill:boolean; borderOpacity:number;patternOpacity:number; worldArtVersion?:number; richText?:RichNode; contentMode:ContentMode; templateImported:boolean; documents?:Drafts; borderColor:string; motifColor:string; borderFill:boolean; motifFill:boolean; crestOpacity?:number;crestFill?:boolean;crestFillColor?:string;borderFillColor?:string;motifFillColor?:string;treeOuterStars?:boolean };
 export const sample = `## 第一章  沉睡的群星
 
 暮色越过白银山脉的时候，最后一只信鸦落在了窗沿。
@@ -24,7 +25,7 @@ export const sample = `## 第一章  沉睡的群星
 书页的深处，有什么正在轻轻呼唤他的名字。
 
 而属于他的故事，才刚刚开始。`;
-export const defaults:Settings={theme:'antique',font:'serif',latinFont:'classic',size:20,leading:1.85,ornament:'botanical',paper:'parchment',indent:true,title:'星辰的余响',subtitle:'THE ECHOES OF STARS',author:'佚名 · 北境纪事',text:sample,country:'none',backgroundColor:'',textColor:'',accentColor:'',pattern:'plain',crest:'moon',elements:[],titleFont:'serif',borderBandFill:false,borderOpacity:1,patternOpacity:.08,contentMode:'content',templateImported:false,borderColor:'',motifColor:'',borderFill:false,motifFill:false};
+export const defaults:Settings={theme:'antique',font:'serif',latinFont:'classic',size:20,leading:1.85,ornament:'botanical',paper:'parchment',indent:true,title:'星辰的余响',subtitle:'THE ECHOES OF STARS',author:'佚名 · 北境纪事',text:sample,country:'none',backgroundColor:'',textColor:'',accentColor:'',pattern:'plain',crest:'moon',elements:[],titleFont:'serif',borderBandFill:false,borderOpacity:1,patternOpacity:.08,contentMode:'content',templateImported:false,borderColor:'',motifColor:'',borderFill:false,motifFill:false,crestOpacity:1,crestFill:false,crestFillColor:'',borderFillColor:'',motifFillColor:'',treeOuterStars:true};
 export const themes=[
  {id:'antique',name:'失落古籍',desc:'旧纸、墨迹与时光',en:'THE ANCIENT ARCHIVE',bg:'#f1e5cb',ink:'#453c2b',accent:'#947541'},
  {id:'astral',name:'星月手札',desc:'深蓝夜幕与银色星轨',en:'THE CELESTIAL GRIMOIRE',bg:'#202c3d',ink:'#e3dfd3',accent:'#b8a77d'},
@@ -32,7 +33,7 @@ export const themes=[
 ];
 export function getPalette(s:Settings){const t=themes.find(t=>t.id===s.theme)||themes[0];return{bg:s.backgroundColor|| (s.paper==='white'?(s.theme==='astral'?'#283448':'#fffdf8'):t.bg),ink:s.textColor||t.ink,accent:s.accentColor||t.accent};}
 export function worldSettings(id:string):Partial<Settings>{const w=worlds.find(w=>w.id===id)||worlds[0];return {country:w.id,worldArtVersion:2,ornament:w.ornament||defaults.ornament,theme:w.theme,backgroundColor:w.color,textColor:w.ink,accentColor:w.accent,pattern:w.pattern,crest:w.crest,elements:[...w.elements],decorations:legacyDecorations(w.elements,w.accent).map(e=>({...e,opacity:.35}))};}
-export type TextRun=LocalStyle&{text:string;x:number;y:number;size:number;bold?:boolean;accent?:boolean;align?:CanvasTextAlign;quote?:boolean;maxWidth?:number;image?:{src:string;alt:string;width:number;height:number}};
+export type TextRun=LocalStyle&{text:string;x:number;y:number;size:number;bold?:boolean;accent?:boolean;align?:CanvasTextAlign;quote?:boolean;quoteX?:number;maxWidth?:number;image?:{src:string;alt:string;width:number;height:number}};
 export type Sheet={height:number;runs:TextRun[];number:number;first:boolean};
 export type Manuscript={s:Settings;mode:'pages'|'long';sheets:Sheet[];width:number};
 export function layoutManuscript(s:Settings,mode:'pages'|'long'='pages'):Manuscript{
@@ -71,7 +72,8 @@ export function layoutManuscript(s:Settings,mode:'pages'|'long'='pages'):Manuscr
  const size=heading?s.size+(block.level===3?2:5):s.size;
  const indent=!heading&&!quote&&!profileHead&&s.indent?size*2:0;
  const lh=size*(profileRow||profileHead?1.45:heading?1.6:s.leading);
- const available=right-left-(quote?32:0);let row: {text:string;style:LocalStyle;width:number}[]=[],width=0,first=true;
+ font(size);const quoteOffset=quote?Math.min(measure.measureText(quotePrefix(text)).width,(right-left)*.65):0;
+ const available=right-left-(quote?32+quoteOffset:0);let row: {text:string;style:LocalStyle;width:number}[]=[],width=0,first=true;
  const rows:{text:string;style:LocalStyle;width:number}[][]=[];
  function fontFor(style:LocalStyle){measure.font=`${style.italic?'italic ':''}${style.bold||heading?'700 ':''}${size}px ${style.fontFamily||family}`;}
  function finishRow(){rows.push(row);row=[];width=0;first=false;}
@@ -86,13 +88,14 @@ export function layoutManuscript(s:Settings,mode:'pages'|'long'='pages'):Manuscr
  }
  // Split whitespace into individual wrapping opportunities. Consecutive spaces
  // stay where the user typed them instead of moving together to the last line.
- for(const span of block.spans)for(const token of span.text.match(/[A-Za-z0-9]+(?:['’\-][A-Za-z0-9]+)*|\n|[^\x00-\x7F]|[^\S\n]|./gu)||[])push(token,span.style);
+ let skip=quote?quotePrefix(text).length:0;
+ for(const span of block.spans){const part=span.text.slice(Math.min(skip,span.text.length));skip=Math.max(0,skip-span.text.length);for(const token of part.match(/[A-Za-z0-9]+(?:['’\-][A-Za-z0-9]+)*|\n|[^\x00-\x7F]|[^\S\n]|./gu)||[])push(token,span.style);}
  if(row.length)rows.push(row);
  if(heading){ensure(lh*2.4);y+=10;}
  for(let i=0;i<rows.length;i++){
  ensure(lh);const rowWidth=rows[i].reduce((sum,piece)=>sum+piece.width,0);
- let x=profileHead?(W-rowWidth)/2:left+(quote?20:0)+(i===0?indent:0);
- for(let j=0;j<rows[i].length;j++){const piece=rows[i][j];add({text:piece.text,x,y,size,accent:quote,quote:quote&&j===0,...piece.style,bold:piece.style.bold||heading});x+=piece.width;}
+ let x=profileHead?(W-rowWidth)/2:left+(quote?20+quoteOffset:0)+(i===0?indent:0);
+ for(let j=0;j<rows[i].length;j++){const piece=rows[i][j];add({text:piece.text,x,y,size,accent:quote,quote:quote&&j===0,quoteX:left+quoteOffset,...piece.style,bold:piece.style.bold||heading});x+=piece.width;}
  y+=lh;
  }
  y+=profileRow||profileHead?3:heading?12:s.size*.5;
@@ -112,16 +115,16 @@ export function paintSheet(c:CanvasRenderingContext2D,m:Manuscript,sheet:Sheet,c
  let seed=71+Math.floor(clipTop)*13;for(let i=0;i<Math.ceil(clipHeight*14);i++){seed=(seed*16807)%2147483647;const x=seed%W;seed=(seed*16807)%2147483647;const yy=clipTop+seed%Math.ceil(clipHeight);c.fillStyle=i%2?'#64503409':'#ffffff12';c.fillRect(x,yy,s.paper==='linen'?2:1,s.paper==='linen'?.5:1);}
  if(s.paper==='linen'){c.strokeStyle='#ffffff09';c.lineWidth=.5;for(let x=0;x<W;x+=4)line(x,clipTop,x,clipTop+clipHeight);for(let yy=Math.floor(clipTop/4)*4;yy<clipTop+clipHeight;yy+=4)line(0,yy,W,yy);}
  }
- backgroundArt(c,s.pattern,[],W,H,s.motifColor||accent,s.patternOpacity??.08,clipTop,clipHeight,s.motifFill);
- for(const e of s.decorations||legacyDecorations(s.elements,s.motifColor||accent,s.motifFill)){const p=decorationPosition(e,W,H);if(p.y+p.size<clipTop||p.y-p.size>clipTop+clipHeight)continue;c.save();c.globalAlpha=e.opacity??1;c.strokeStyle=e.color;c.fillStyle=e.color;mark(c,e.motif,p.x,p.y,p.size/2,e.solid);c.restore();}
+ backgroundArt(c,s.pattern,[],W,H,s.motifColor||accent,s.patternOpacity??.08,clipTop,clipHeight,s.motifFill,s.motifFillColor||bg,s.treeOuterStars??true);
+ for(const e of s.decorations||legacyDecorations(s.elements,s.motifColor||accent,s.motifFill)){const p=decorationPosition(e,W,H);if(p.y+p.size<clipTop||p.y-p.size>clipTop+clipHeight)continue;c.save();c.globalAlpha=e.opacity??1;c.strokeStyle=e.color;c.fillStyle=e.fillColor||bg;mark(c,e.motif,p.x,p.y,p.size/2,e.solid,e.treeOuterStars??true);c.restore();}
  c.strokeStyle=accent;c.fillStyle=accent;
- c.save();c.globalAlpha=s.borderOpacity??1;paperFrame(c,s.ornament,W,H,s.borderColor||accent,s.borderFill,s.borderBandFill);c.restore();
+ c.save();c.globalAlpha=s.borderOpacity??1;paperFrame(c,s.ornament,W,H,s.borderColor||accent,s.borderFill,s.borderBandFill,s.borderFillColor||bg);c.restore();
  const world=worlds.find(w=>w.id===s.country);c.font=`10px ${family}`;c.fillStyle=accent;c.textAlign='center';c.fillText(s.country==='none'?(themes.find(t=>t.id===s.theme)||themes[0]).en:`${world?.name||'旅人'} · 典藏手稿`,W/2,69,W-180);
- if(sheet.first&&s.crest!=='none'){c.strokeStyle=s.motifColor||accent;c.fillStyle=s.motifColor||accent;c.lineWidth=.9;mark(c,s.crest,W/2,119,27,s.motifFill);}
+ if(sheet.first&&s.crest!=='none'){c.save();c.globalAlpha=s.crestOpacity??1;c.strokeStyle=s.motifColor||accent;c.fillStyle=s.crestFillColor||bg;c.lineWidth=.9;mark(c,s.crest,W/2,119,27,s.crestFill??s.motifFill,s.treeOuterStars??true);c.restore();}
  c.globalAlpha=1;c.globalCompositeOperation='source-over';
  for(const run of sheet.runs){
  if(run.image){const im=run.image;if(run.y+im.height<clipTop||run.y>clipTop+clipHeight)continue;const source=decodedImage(im.src);if(source)c.drawImage(source,run.x,run.y,im.width,im.height);else{c.save();c.strokeStyle=accent;c.strokeRect(run.x,run.y,im.width,im.height);c.fillStyle=ink;c.font=`14px ${family}`;c.textAlign='center';c.fillText('图片暂不可用 · 请重新插入',run.x+im.width/2,run.y+Math.min(im.height/2,40));c.restore();}continue;}
- if(run.y<clipTop-80||run.y>clipTop+clipHeight+80)continue;if(run.text==='__separator__'){divider(run.y);continue;}c.font=`${run.italic?'italic ':''}${run.bold?'700 ':''}${run.size}px ${run.fontFamily||family}`;c.fillStyle=run.color||(run.accent?accent:ink);c.textAlign=run.align||'left';c.textBaseline='alphabetic';if(run.highlight){const width=c.measureText(run.text).width;const x=run.align==='center'?run.x-width/2:run.align==='right'?run.x-width:run.x;c.fillStyle=run.highlight;c.fillRect(x,run.y-run.size*.88,width+.5,run.size*1.18);c.fillStyle=run.color||(run.accent?accent:ink);}if(run.quote){c.strokeStyle=accent;c.lineWidth=1.3;line(97,run.y-run.size,97,run.y+run.size*.45)}if(run.maxWidth)c.fillText(run.text,run.x,run.y,run.maxWidth);else c.fillText(run.text,run.x,run.y);if(run.underline){c.strokeStyle=run.color||(run.accent?accent:ink);c.lineWidth=Math.max(.8,run.size/20);line(run.x,run.y+3,run.x+c.measureText(run.text).width,run.y+3);}}
+ if(run.y<clipTop-80||run.y>clipTop+clipHeight+80)continue;if(run.text==='__separator__'){divider(run.y);continue;}c.font=`${run.italic?'italic ':''}${run.bold?'700 ':''}${run.size}px ${run.fontFamily||family}`;c.fillStyle=run.color||(run.accent?accent:ink);c.textAlign=run.align||'left';c.textBaseline='alphabetic';if(run.highlight){const width=c.measureText(run.text).width;const x=run.align==='center'?run.x-width/2:run.align==='right'?run.x-width:run.x;c.fillStyle=run.highlight;c.fillRect(x,run.y-run.size*.88,width+.5,run.size*1.18);c.fillStyle=run.color||(run.accent?accent:ink);}if(run.quote){c.strokeStyle=accent;c.lineWidth=1.3;line(run.quoteX??94,run.y-run.size,run.quoteX??94,run.y+run.size*.45)}if(run.maxWidth)c.fillText(run.text,run.x,run.y,run.maxWidth);else c.fillText(run.text,run.x,run.y);if(run.underline){c.strokeStyle=run.color||(run.accent?accent:ink);c.lineWidth=Math.max(.8,run.size/20);line(run.x,run.y+3,run.x+c.measureText(run.text).width,run.y+3);}}
  c.font=`13px ${family}`;c.textAlign='center';c.fillStyle=accent;c.fillText(s.author,W/2,H-67,W-188);if(m.mode==='pages'){c.font=`11px ${family}`;c.fillText(String(sheet.number).padStart(2,'0'),W/2,H-47);}
 }
 export function renderTile(m:Manuscript,sheet:Sheet,top=0,height=sheet.height,scale=2){

@@ -1,6 +1,10 @@
 "use client";
 import {useEditor,EditorContent,Mark,type JSONContent} from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
+import {Extension} from '@tiptap/core';
+import {Plugin} from '@tiptap/pm/state';
+import {Decoration,DecorationSet} from '@tiptap/pm/view';
+import {quoteIndentEm,quotePrefix} from '../lib/quote-layout';
 import BoldExtension from '@tiptap/extension-bold';
 import ImageExtension from '@tiptap/extension-image';
 import {importImage} from '../lib/images';
@@ -18,6 +22,21 @@ const HighlightMark=Mark.create({
  parseHTML(){return [{tag:'mark'}]},
  renderHTML({HTMLAttributes}){const color=opaqueColor(HTMLAttributes.color)||'#ffff00';return ['mark',{'data-color':color,style:`background-color:${color};color:inherit`},0]}
 });
+const QuoteLayout=Extension.create({
+ name:'quoteLayout',
+ addProseMirrorPlugins(){return [new Plugin({props:{decorations(state){
+  const decorations:Decoration[]=[];
+  state.doc.descendants((node,pos,parent)=>{
+   if(node.type.name!=='paragraph'||parent?.type.name!=='blockquote')return;
+   const prefix=quotePrefix(node.textContent),indent=quoteIndentEm(node.textContent);
+   // Move the whole paragraph, including its rule and all wrapped lines.
+   // Keep the source spaces for editing/export, but don't lay them out twice.
+   decorations.push(Decoration.node(pos,pos+node.nodeSize,{style:`margin-left:${indent}em;text-indent:0;border-left:2px solid currentColor;padding-left:12px;`}));
+   if(prefix.length)decorations.push(Decoration.inline(pos+1,pos+1+prefix.length,{class:'quote-prefix',style:'font-size:0;line-height:0;letter-spacing:0;word-spacing:0;'}));
+  });
+  return DecorationSet.create(state.doc,decorations);
+ }}})];}
+});
 const StoryImage=ImageExtension.extend({
  parseHTML(){return [{tag:'img[src]',getAttrs:element=>/^(blob:|data:image\/(png|jpeg|webp|gif|avif);)/.test((element as HTMLElement).getAttribute('src')||'')?null:false}];},
  addAttributes(){return {...this.parent?.(),assetId:{default:null},width:{default:1},height:{default:1},widthPercent:{default:100},alignment:{default:'center'}};},
@@ -25,11 +44,12 @@ const StoryImage=ImageExtension.extend({
 }).configure({allowBase64:true});
 export function RichEditor({value,settings,onChange}:{value:RichNode;settings:Settings;onChange:(value:RichNode,text:string)=>void}){
  const callback=useRef(onChange);callback.current=onChange;
+ const emitted=useRef<RichNode|null>(null);
  const selection=useRef<{from:number;to:number}|null>(null);
  const [selected,setSelected]=useState(0),[revision,setRevision]=useState(0);
  const fileInput=useRef<HTMLInputElement>(null);const [imageBusy,setImageBusy]=useState(false),[imageError,setImageError]=useState('');const [highlightPick,setHighlightPick]=useState('#ffff00');
- const editor=useEditor({extensions:[StarterKit.configure({bold:false,heading:{levels:[2,3]},codeBlock:false,code:false,link:false,bulletList:false,orderedList:false,listItem:false,strike:false}),BoldExtension,TextStyle,Color,FontFamily,HighlightMark,StoryImage],content:value as JSONContent,immediatelyRender:false,editorProps:{attributes:{role:'textbox','aria-label':'正文','aria-multiline':'true',id:'body-text',spellcheck:'false'},transformPastedHTML:normalizePastedHTML,transformPastedText:normalizePastedText},onUpdate:({editor})=>{const doc=editor.getJSON() as RichNode;callback.current(doc,toPlainText(doc));setRevision(n=>n+1)},onSelectionUpdate:({editor})=>{const {from,to}=editor.state.selection;selection.current={from,to};setSelected(editor.state.doc.textBetween(from,to,'\n').length);setRevision(n=>n+1)},onTransaction:()=>setRevision(n=>n+1)});
- useEffect(()=>{if(!editor)return;if(JSON.stringify(editor.getJSON())!==JSON.stringify(value)){editor.commands.setContent(value as JSONContent,{emitUpdate:false});selection.current=null;setSelected(0)}},[editor,value]);
+ const editor=useEditor({extensions:[StarterKit.configure({bold:false,heading:{levels:[2,3]},codeBlock:false,code:false,link:false,bulletList:false,orderedList:false,listItem:false,strike:false}),BoldExtension,TextStyle,Color,FontFamily,HighlightMark,StoryImage,QuoteLayout],content:value as JSONContent,parseOptions:{preserveWhitespace:'full'},immediatelyRender:false,editorProps:{attributes:{role:'textbox','aria-label':'正文','aria-multiline':'true',id:'body-text',spellcheck:'false'},handleTextInput:(view,from,to,text)=>{if(view.composing||!/^ +$/.test(text))return false;view.dispatch(view.state.tr.insertText(text,from,to));return true;},transformPastedHTML:normalizePastedHTML,transformPastedText:normalizePastedText},onUpdate:({editor})=>{const doc=editor.getJSON() as RichNode;emitted.current=doc;callback.current(doc,toPlainText(doc));setRevision(n=>n+1)},onSelectionUpdate:({editor})=>{const {from,to}=editor.state.selection;selection.current={from,to};setSelected(editor.state.doc.textBetween(from,to,'\n').length);setRevision(n=>n+1)},onTransaction:()=>setRevision(n=>n+1)});
+ useEffect(()=>{if(!editor||value===emitted.current||editor.view.composing)return;if(JSON.stringify(editor.getJSON())!==JSON.stringify(value)){editor.commands.setContent(value as JSONContent,{emitUpdate:false,parseOptions:{preserveWhitespace:'full'}});selection.current=null;setSelected(0)}},[editor,value]);
  if(!editor)return <div className="rich-editor-loading">正在准备书写空间…</div>;
  async function addImage(file:File){
  const insertion=selection.current?.from??editor!.state.selection.from;setImageError('');setImageBusy(true);
@@ -53,7 +73,7 @@ export function RichEditor({value,settings,onChange}:{value:RichNode;settings:Se
    const starts:number[]=[];const {from,to}=state.selection;
    state.doc.nodesBetween(from,to,(node,pos)=>{if(node.isTextblock){if(needsQuoteIndent(node.textContent))starts.push(pos+1);return false}return true});
    if(!starts.length){const {$from}=state.selection;if($from.parent.isTextblock&&needsQuoteIndent($from.parent.textContent))starts.push($from.start());}
-   for(let i=starts.length-1;i>=0;i--)tr.insertText('\u3000',starts[i]);
+   for(let i=starts.length-1;i>=0;i--)tr.insertText('\u3000\u3000',starts[i]);
    return true;
   }).toggleBlockquote().run();
  }

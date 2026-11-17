@@ -1,8 +1,8 @@
 import {drawMotif} from './motifs';
 export const mark=drawMotif;
-export function backgroundArt(c:CanvasRenderingContext2D,pattern:string,elements:string[],w:number,h:number,accent:string,opacity:number,clipTop=0,clipHeight=h,solid=false){
+export function backgroundArt(c:CanvasRenderingContext2D,pattern:string,elements:string[],w:number,h:number,accent:string,opacity:number,clipTop=0,clipHeight=h,solid=false,fillColor=accent,treeOuterStars=true){
  const aliases:Record<string,string>={arcane:'astral',halo:'astral',ruins:'cathedral',mist:'forest','moon-garden':'astral',illumination:'forest',astrolabe:'astral'};pattern=aliases[pattern]||pattern;
- c.save();c.strokeStyle=accent;c.fillStyle=accent;c.lineWidth=.85;
+ c.save();c.strokeStyle=accent;c.fillStyle=fillColor;c.lineWidth=.85;
  const lo=Math.max(0,Math.floor((clipTop-400)/680)),hi=Math.ceil((clipTop+clipHeight+400)/680);
  for(let i=lo;i<=hi;i++){const yy=390+i*680;c.globalAlpha=opacity;
   if(pattern==='astral'){drawMotif(c,'moon',w/2,yy,145,solid);for(const [x,y] of [[150,yy-170],[w-160,yy+170],[w-190,yy-90]])drawMotif(c,'stars',x,y,20,solid);}
@@ -37,13 +37,13 @@ export function backgroundArt(c:CanvasRenderingContext2D,pattern:string,elements
    drawMotif(c,'home',w/2,yy-35,118,solid);for(const flip of [-1,1]){for(let j=0;j<4;j++){c.save();c.translate(w/2+flip*(125+j*33),yy+30+j*37);c.rotate(flip*(.45+j*.08));drawMotif(c,'vines',0,0,22,solid);c.restore();}drawMotif(c,'stars',w/2+flip*195,yy-170,18,solid);}c.beginPath();c.arc(w/2,yy+118,210,Math.PI*.12,Math.PI*.88);c.stroke();
   }
   if(pattern==='life-roots'){
-   drawMotif(c,'tree',w/2,yy-25,145,solid);for(const flip of [-1,1])polygon([[w/2,yy+95],[w/2+flip*80,yy+185],[w/2+flip*210,yy+230],[w/2+flip*105,yy+178],[w/2+flip*30,yy+80]]);for(const [x,y]of [[100,yy-180],[w-100,yy+180]])drawMotif(c,'vines',x,y,42,solid);
+   drawMotif(c,'tree',w/2,yy-25,145,solid,treeOuterStars);for(const flip of [-1,1])polygon([[w/2,yy+95],[w/2+flip*80,yy+185],[w/2+flip*210,yy+230],[w/2+flip*105,yy+178],[w/2+flip*30,yy+80]]);for(const [x,y]of [[100,yy-180],[w-100,yy+180]])drawMotif(c,'vines',x,y,42,solid);
   }
   if(pattern==='angel-dawn'){
    circle(w/2,yy-130,55);circle(w/2,yy-130,64);for(const flip of [-1,1]){c.save();c.translate(w/2+flip*100,yy+50);c.scale(flip,1);c.rotate(-.2);drawMotif(c,'wing',0,0,110,solid);c.restore();}drawMotif(c,'sun',w/2,yy+80,31,solid);
   }
   if(pattern==='sealed-ruins'){
-   drawMotif(c,'seal',w/2,yy,125,solid);for(const flip of [-1,1])for(let j=0;j<3;j++){const x=w/2+flip*210,y=yy-160+j*125;polygon([[x-20,y],[x+26,y-8],[x+23,y+67],[x-24,y+75]]);}drawMotif(c,'crystal',w/2,yy+225,27,solid);
+   drawMotif(c,'seal',w/2,yy,125,solid);for(const flip of [-1,1])for(let j=0;j<3;j++){const x=w/2+flip*210,y=yy-160+j*125;polygon([[x-20,y],[x+26,y-8],[x+23,y+67],[x-24,y+75]]);}drawMotif(c,'crystal',w/2,yy+225,27,solid,treeOuterStars);
   }
   if(pattern==='mist-watch'){
    drawMotif(c,'eye',w/2,yy-40,100,solid);for(let j=0;j<4;j++){const y=yy-210+j*130;c.beginPath();c.moveTo(115,y);c.bezierCurveTo(250,y+50,w-250,y-45,w-115,y);c.bezierCurveTo(w-250,y-30,250,y+65,115,y+15);c.closePath();if(solid)c.fill();c.stroke();}for(const x of [65,w-65])drawMotif(c,'vines',x,yy+40,40,solid);

@@ -13,9 +13,9 @@ export function frameBandPath(style:string,w:number,h:number){
  }
  return rect(32)+' '+rect(42);
 }
-export function paperFrame(c:CanvasRenderingContext2D,style:string,w:number,h:number,color:string,solid=false,bandSolid=false){
+export function paperFrame(c:CanvasRenderingContext2D,style:string,w:number,h:number,color:string,solid=false,bandSolid=false,fillColor=color){
  const aliases:Record<string,string>={gothic:'cathedral',celestial:'cameo',roses:'botanical',filigree:'botanical',celtic:'geometric',dragon:'cameo'};style=aliases[style]||style;
- if(style==='none')return;c.save();c.strokeStyle=color;c.fillStyle=color;c.lineWidth=1.1;c.lineJoin='round';
+ if(style==='none')return;c.save();c.strokeStyle=color;c.fillStyle=fillColor;c.lineWidth=1.1;c.lineJoin='round';
  if(bandSolid)c.fill(new Path2D(frameBandPath(style,w,h)),'evenodd');
  const closed=(points:number[][])=>{c.beginPath();points.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));c.closePath();if(solid)c.fill();c.stroke();};
  if(style==='ribbon'){
