@@ -3,13 +3,20 @@ export const chineseFonts=[{id:'serif',family:'ArcaneSerif',name:'思源宋体 �
 export const latinFonts=[{id:'classic',family:'ArcaneRoman',name:'古典装饰体 · Cinzel',preview:'Echoes of Stars'},{id:'script',family:'ArcaneScript',name:'连笔花体 · Great Vibes',preview:'Echoes of Stars'},{id:'gothic',family:'ArcaneGothic',name:'哥特花体 · Blackletter',preview:'Echoes of Stars'},{id:'book',family:'ArcaneBook',name:'古典书籍体 · Cormorant',preview:'Echoes of Stars'},{id:'parisienne',family:'ArcaneParisienne',name:'优雅花体 · Parisienne',preview:'Echoes of Stars'}];
 export function fontStack(s:Settings){return `"${(latinFonts.find(f=>f.id===s.latinFont)||latinFonts[0]).family}", "${(chineseFonts.find(f=>f.id===s.font)||chineseFonts[0]).family}", "ArcaneSerif", serif`;}
 export function titleFontStack(s:Settings){return fontStack({...s,font:s.titleFont||s.font});}
+const loadedFamilies=new Map<string,Promise<void>>();
+function loadFamily(family:string){
+ const cached=loadedFamilies.get(family);if(cached)return cached;
+ const pending=new Promise<void>((resolve,reject)=>{
+  const timer=setTimeout(()=>reject(new Error('字体载入较慢，请稍后重试')),30000);
+  // Bold is synthesized from the same embedded face: avoid downloading a
+  // second 7–10 MB Chinese file just to show B or a heading.
+  document.fonts.load(`400 20px "${family}"`,chineseFonts.some(f=>f.family===family)?'群星森林':'Echoes').then(fonts=>{clearTimeout(timer);fonts.length?resolve():reject(new Error('字体未能载入'));},error=>{clearTimeout(timer);reject(error);});
+ });
+ loadedFamilies.set(family,pending);void pending.catch(()=>{if(loadedFamilies.get(family)===pending)loadedFamilies.delete(family);});return pending;
+}
 export async function loadFonts(s:Settings){
- const families=new Set(['ArcaneSerif',(chineseFonts.find(f=>f.id===s.titleFont)||chineseFonts[0]).family,(chineseFonts.find(f=>f.id===s.font)||chineseFonts[0]).family,(latinFonts.find(f=>f.id===s.latinFont)||latinFonts[0]).family]);
+ const families=new Set([(chineseFonts.find(f=>f.id===s.titleFont)||chineseFonts[0]).family,(chineseFonts.find(f=>f.id===s.font)||chineseFonts[0]).family,(latinFonts.find(f=>f.id===s.latinFont)||latinFonts[0]).family]);
  function visit(node:{marks?:{attrs?:Record<string,unknown>}[];content?:unknown[]}){for(const mark of node.marks||[]){const stack=String(mark.attrs?.fontFamily||'');for(const f of [...chineseFonts,...latinFonts])if(stack.includes(f.family))families.add(f.family);}for(const child of node.content||[])visit(child as typeof node);}
  if(s.richText)visit(s.richText);
- const requested=[...families].map(family=>document.fonts.load(`400 20px "${family}"`,chineseFonts.some(f=>f.family===family)?'群星森林':'Echoes'));
- await Promise.race([
-  Promise.allSettled(requested),
-  new Promise<void>(resolve=>setTimeout(resolve,6000)),
- ]);
+ await Promise.all([...families].map(loadFamily));
 }

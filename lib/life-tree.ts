@@ -1,11 +1,10 @@
-export const lifeTreeAssets={plain:'./life-tree.png',stars:'./life-tree-stars.png',holes:'./life-tree-holes.png'};
+import {loadArtwork,artworkAsset} from './asset-loader';
+export const lifeTreeAssets={plain:artworkAsset('life-tree.png'),stars:artworkAsset('life-tree-stars.png'),holes:artworkAsset('life-tree-holes.png')};
 const images=new Map<string,HTMLImageElement>();
 const tinted=new Map<string,HTMLCanvasElement>();
-let loading:Promise<void>|undefined;
-export function prepareLifeTree(){
+export function prepareLifeTree(sources:string[]=Object.values(lifeTreeAssets)){
  if(typeof Image==='undefined')return Promise.resolve();
- if(!loading)loading=Promise.all(Object.values(lifeTreeAssets).map(async src=>{const image=new Image();image.src=src;await image.decode();images.set(src,image);})).then(()=>{}).catch(error=>{loading=undefined;throw error;});
- return loading;
+ return Promise.all(sources.map(async src=>{images.set(src,await loadArtwork(src));})).then(()=>{});
 }
 function mask(src:string,color:string){
  const source=images.get(src);if(!source)return;

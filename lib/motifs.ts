@@ -1,20 +1,26 @@
+import {loadArtwork,artworkAsset} from './asset-loader';
+import {motifRequirements,type AssetSelection} from './motif-requirements';
 import {drawLaurel,prepareLaurel} from './laurel-art';
 import {drawRose,prepareRoses,isRose} from './rose-art';
 import {drawLifeTree,prepareLifeTree} from './life-tree';
 import {drawEightPointStar,isEightPointStar,prepareSuppliedArt} from './supplied-art';
-export const motifOptions=[{id:'stars',name:'八芒星1'},{id:'stars2',name:'八芒星2'},{id:'moon',name:'弦月'},{id:'vines',name:'月桂叶'},{id:'roses',name:'蔷薇1'},{id:'roses2',name:'蔷薇2'},{id:'crystal',name:'棱晶'},{id:'sword',name:'骑士剑'},{id:'butterfly',name:'蝶翼'},{id:'compass',name:'航海罗盘'},{id:'crown',name:'王冠'},{id:'gear',name:'魔导齿轮'},{id:'sun',name:'圣日'},{id:'wing',name:'天使羽翼'},{id:'dragon',name:'龙首'},{id:'book',name:'魔法书'},{id:'tree',name:'生命树'},{id:'home',name:'守护之屋'},{id:'seal',name:'封印'},{id:'eye',name:'幽雾之眼'}];
+export const motifOptions=[{id:'stars',name:'八芒星1'},{id:'stars2',name:'八芒星2'},{id:'moon',name:'弦月'},{id:'vines',name:'月桂叶'},{id:'roses',name:'蔷薇1'},{id:'roses2',name:'蔷薇2'},{id:'crystal',name:'棱晶'},{id:'sword',name:'骑士剑'},{id:'butterfly',name:'蝶翼'},{id:'compass',name:'航海罗盘'},{id:'crown',name:'王冠'},{id:'gear',name:'魔导齿轮'},{id:'sun',name:'圣日'},{id:'wing',name:'天使羽翼'},{id:'dragon',name:'龙首'},{id:'book',name:'魔法书'},{id:'tree',name:'生命树'},{id:'seal',name:'封印'},{id:'eye',name:'幽雾之眼'}];
 export const borderOptions=[{id:'none',name:'无边框'},{id:'botanical',name:'月桂卷叶'},{id:'geometric',name:'菱格双线'},{id:'cathedral',name:'尖拱书窗'},{id:'ribbon',name:'斜纹织带'},{id:'cameo',name:'徽章圆角'},{id:'postage',name:'邮票齿边'}];
-export const rasterMotifAssets:Record<string,string>={dragon:'./dragon-head-original.png',dragonInk:'./dragon-head-ink.png',dragonHighlight:'./dragon-head-highlight.png'};
+export const rasterMotifAssets:Record<string,string>={dragon:'./dragon-head-original.png',dragonInk:artworkAsset('dragon-head-ink.png'),dragonHighlight:artworkAsset('dragon-head-highlight.png')};
 let dragonInkImage:HTMLImageElement|undefined,dragonHighlightImage:HTMLImageElement|undefined;
 const tintedDragonCache=new Map<string,HTMLCanvasElement>();
-export async function prepareMotifAssets(){
+export async function prepareMotifAssets(selection?:AssetSelection){
  if(typeof Image==='undefined')return;
- const load=async(image:HTMLImageElement|undefined,src:string)=>{const next=image||new Image();if(next.complete&&next.naturalWidth)return next;next.src=src;if(next.decode)await next.decode();else await new Promise<void>((resolve,reject)=>{next.onload=()=>resolve();next.onerror=()=>reject(new Error('龙首图案载入失败'));});return next;};
- await Promise.all([prepareLifeTree(),prepareRoses(),prepareLaurel(),prepareSuppliedArt()]);
- [dragonInkImage,dragonHighlightImage]=await Promise.all([load(dragonInkImage,rasterMotifAssets.dragonInk),load(dragonHighlightImage,rasterMotifAssets.dragonHighlight)]);
+ const plan=motifRequirements(selection);
+ await Promise.all([
+  prepareLifeTree([...plan.trees]),prepareRoses([...plan.roses]),prepareSuppliedArt([...plan.supplied]),
+  ...(plan.laurel?[prepareLaurel()]:[]),
+  ...(plan.dragon?[Promise.all([loadArtwork(rasterMotifAssets.dragonInk),loadArtwork(rasterMotifAssets.dragonHighlight)]).then(([ink,highlight])=>{dragonInkImage=ink;dragonHighlightImage=highlight;})]:[])
+ ]);
 }
+
 const aliases:Record<string,string>={snow:'stars',constellation:'stars',circle:'compass',astrolabe:'compass',phases:'moon',wings:'wing',gears:'gear',laurel:'vines',key:'sword',hourglass:'crystal'};
-export function motifId(id:string){return aliases[id]||id;}
+export function motifId(id:string){return id==='home'?'none':aliases[id]||id;}
 export const motifPaths:Record<string,string[]>={
  stars:[],stars2:[],
  moon:['M13 -27 C-30 -32 -38 19 -5 29 C6 32 16 28 22 21 C-8 25 -22 -10 13 -27 Z'],
@@ -31,7 +37,6 @@ export const motifPaths:Record<string,string[]>={
  dragon:[],
  book:['M0 -20 C-10 -28 -23 -27 -30 -22 L-30 23 C-18 17 -9 21 0 28 C9 21 18 17 30 23 L30 -22 C23 -27 10 -28 0 -20 Z','M-24 -17 C-16 -20 -8 -18 -4 -14 L-4 17 C-12 12 -18 11 -24 13 Z','M24 -17 C16 -20 8 -18 4 -14 L4 17 C12 12 18 11 24 13 Z'],
  tree:[],
- home:['M-31 -7 L0 -31 L31 -7 L25 -7 L25 29 L-25 29 L-25 -7 Z','M-7 29 L-7 7 C-7 -2 7 -2 7 7 L7 29 Z','M-19 1 L-10 1 L-10 11 L-19 11 Z','M10 1 L19 1 L19 11 L10 11 Z'],
  seal:['M0 -31 A31 31 0 1 1 0 31 A31 31 0 1 1 0 -31 Z','M0 -25 A25 25 0 1 1 0 25 A25 25 0 1 1 0 -25 Z','M0 -21 L12 17 L-20 -6 L20 -6 L-12 17 Z'],
  eye:['M-32 0 Q0 -28 32 0 Q0 28 -32 0 Z','M0 -12 A12 12 0 1 1 0 12 A12 12 0 1 1 0 -12 Z','M0 -5 A5 5 0 1 1 0 5 A5 5 0 1 1 0 -5 Z']
 };
@@ -39,7 +44,6 @@ export const motifStrokes:Record<string,string[]>={
  wing:['M-27 24 C-20 10 -8 -5 10 -19','M-22 26 C-14 13 -2 2 16 -8','M-14 29 C-6 19 5 12 20 8','M-5 29 C2 24 8 22 15 26'],
  dragon:[],
  tree:[],
- home:['M-18 -7 L-18 -17 L-9 -17 L-9 -14','M-31 -7 L31 -7','M-2 17 L2 17','M0 -25 L0 -16','M-5 -20 L5 -20'],
 };
 export function drawMotif(c:CanvasRenderingContext2D,id:string,x:number,y:number,size:number,solid=false,treeOuterStars=true,starOuterDiamonds=true,starDiamondColor?:string){
  const normalized=motifId(id);
@@ -50,7 +54,7 @@ export function drawMotif(c:CanvasRenderingContext2D,id:string,x:number,y:number
  // The dragon keeps the supplied artwork's exact silhouette. Its dark pixels
  // inherit the active motif color while the original white horn marks remain white.
  // It intentionally ignores the generic closed-fill switch.
- if(normalized==='dragon'){if(dragonInkImage?.complete&&dragonInkImage.naturalWidth&&dragonHighlightImage?.complete&&dragonHighlightImage.naturalWidth){const color=String(c.strokeStyle||c.fillStyle||'#373f64');let tinted=tintedDragonCache.get(color);if(!tinted){tinted=document.createElement('canvas');tinted.width=dragonInkImage.naturalWidth;tinted.height=dragonInkImage.naturalHeight;const ink=tinted.getContext('2d')!;ink.drawImage(dragonInkImage,0,0);ink.globalCompositeOperation='source-in';ink.fillStyle=color;ink.fillRect(0,0,tinted.width,tinted.height);if(tintedDragonCache.size>24)tintedDragonCache.clear();tintedDragonCache.set(color,tinted);}c.save();c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';c.globalAlpha*=.88;c.drawImage(tinted,x-size,y-size,size*2,size*2);c.drawImage(dragonHighlightImage,x-size,y-size,size*2,size*2);c.restore();}return;}
+ if(normalized==='dragon'){if(dragonInkImage?.complete&&dragonInkImage.naturalWidth&&dragonHighlightImage?.complete&&dragonHighlightImage.naturalWidth){const color=String(c.strokeStyle||c.fillStyle||'#373f64');let tinted=tintedDragonCache.get(color);if(!tinted){tinted=document.createElement('canvas');tinted.width=dragonInkImage.naturalWidth;tinted.height=dragonInkImage.naturalHeight;const ink=tinted.getContext('2d')!;ink.drawImage(dragonInkImage,0,0);ink.globalCompositeOperation='source-in';ink.fillStyle=color;ink.fillRect(0,0,tinted.width,tinted.height);if(tintedDragonCache.size>=6){const key=tintedDragonCache.keys().next().value;if(key){const old=tintedDragonCache.get(key)!;old.width=old.height=0;tintedDragonCache.delete(key);}}tintedDragonCache.set(color,tinted);}c.save();c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';c.globalAlpha*=.88;c.drawImage(tinted,x-size,y-size,size*2,size*2);c.drawImage(dragonHighlightImage,x-size,y-size,size*2,size*2);c.restore();}return;}
  const paths=motifPaths[normalized],details=motifStrokes[normalized]||[];if(!paths)return;c.save();c.translate(x,y);c.scale(size/34,size/34);c.lineWidth=1.65;c.lineJoin='round';c.lineCap='round';
  // Filled silhouettes and open anatomical/botanical details are kept separate for legibility.
  if(solid){const compound=new Path2D(paths.join(' '));c.fill(compound,'evenodd');}

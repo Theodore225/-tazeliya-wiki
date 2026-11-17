@@ -1,6 +1,7 @@
+import {loadArtwork,artworkAsset} from './asset-loader';
 // The supplied artwork is kept intact. Only its transparent margins are
 // excluded from the display bounds; every leaf, vein and curve stays in place.
-export const laurelAsset='./laurel-original.png';
+export const laurelAsset=artworkAsset('laurel-original.png');
 export const laurelBounds={x:510,y:75,width:2261,height:2628};
 const resolution=1024;
 let masks:{solid:HTMLCanvasElement;outline:HTMLCanvasElement}|undefined;
@@ -28,7 +29,7 @@ export function laurelOutlineAlpha(alpha:Uint8ClampedArray,width:number,height:n
 export function prepareLaurel(){
  if(typeof Image==='undefined')return Promise.resolve();
  if(!loading)loading=(async()=>{
-  const image=new Image();image.src=laurelAsset;await image.decode();
+  const image=await loadArtwork(laurelAsset);
   const solid=document.createElement('canvas');solid.width=solid.height=resolution;
   const c=solid.getContext('2d')!;c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';
   const b=laurelBounds,scale=(resolution-48)/Math.max(b.width,b.height),w=b.width*scale,h=b.height*scale;

@@ -9,7 +9,7 @@ export const worlds:World[] = [
  {id:"esir",name:"埃斯尔教国",note:"东方的神圣教国，山谷、森林、湖泊与信仰。",color:"#f6f1e4",ink:"#66513d",accent:"#b18b48",pattern:"sacred-sun",crest:"sun",elements:["sun", "wing"],ornament:"cathedral",theme:"royal"},
  {id:"isterfin",name:"伊斯特芬王国",note:"北境雪山与冰原，背靠巨龙峡谷的寂静国度。",color:"#e6edf4",ink:"#3a4d68",accent:"#849cb6",pattern:"dragon-ridge",crest:"dragon",elements:["dragon", "stars"],ornament:"geometric",theme:"antique"},
  {id:"gnosis",name:"格诺希斯魔法学校",note:"位于莱恩维亚与埃斯尔之间，在各国设有分校。",color:"#26243c",ink:"#ece4d8",accent:"#c1a778",pattern:"scholar-orbit",crest:"book",elements:["book", "stars"],ornament:"cameo",theme:"astral"},
- {id:"yierda",name:"耶尔达孤儿院",note:"塔泽里亚大陆的儿童收容与照护组织。",color:"#f3eadb",ink:"#55453d",accent:"#a67869",pattern:"shelter-garden",crest:"home",elements:["home", "vines"],ornament:"botanical",theme:"antique"},
+ {id:"yierda",name:"耶尔达孤儿院",note:"塔泽里亚大陆的儿童收容与照护组织。",color:"#f3eadb",ink:"#55453d",accent:"#a67869",pattern:"shelter-garden",crest:"none",elements:["vines"],ornament:"botanical",theme:"antique"},
  {id:"elven",name:"精灵之森",note:"生命树的根系遍布森林，生命从此诞生，亦回归于此。",color:"#e8edda",ink:"#384c3b",accent:"#8f9b66",pattern:"life-roots",crest:"tree",elements:["tree", "vines"],ornament:"botanical",theme:"antique"},
  {id:"white",name:"白域",note:"唯有白昼的天使之域，人造太阳的光晕笼罩此地。",color:"#faf6e9",ink:"#807057",accent:"#bca469",pattern:"angel-dawn",crest:"wing",elements:["wing", "sun"],ornament:"cathedral",theme:"royal"},
  {id:"forsaken",name:"神弃之地",note:"大陆最西侧的封印之地，荒芜之中重现微弱生机。",color:"#343438",ink:"#ded8ca",accent:"#aaa17f",pattern:"sealed-ruins",crest:"seal",elements:["seal", "crystal"],ornament:"postage",theme:"astral"},

@@ -1,14 +1,17 @@
 import {drawMotif} from './motifs';
 import {drawSuppliedRegion,isSuppliedRegion} from './supplied-art';
 export const mark=drawMotif;
-export function backgroundArt(c:CanvasRenderingContext2D,pattern:string,elements:string[],w:number,h:number,accent:string,opacity:number,clipTop=0,clipHeight=h,solid=false,fillColor=accent,treeOuterStars=true,starOuterDiamonds=true,starDiamondColor?:string){
+export type BackgroundTransform={scale?:number;x?:number;y?:number};
+export function backgroundTransform(value:BackgroundTransform={}){const clamp=(n:number|undefined,fallback:number,min:number,max:number)=>Number.isFinite(n)?Math.max(min,Math.min(max,n!)):fallback;return{scale:clamp(value.scale,100,20,200)/100,x:clamp(value.x,50,0,100),y:clamp(value.y,50,0,100)};}
+export function backgroundArt(c:CanvasRenderingContext2D,pattern:string,elements:string[],w:number,h:number,accent:string,opacity:number,clipTop=0,clipHeight=h,solid=false,fillColor=accent,treeOuterStars=true,starOuterDiamonds=true,starDiamondColor?:string,transform:BackgroundTransform={}){
  const aliases:Record<string,string>={arcane:'astral',halo:'astral',ruins:'cathedral',mist:'forest','moon-garden':'astral',illumination:'forest',astrolabe:'astral'};pattern=aliases[pattern]||pattern;
  c.save();c.strokeStyle=accent;c.fillStyle=fillColor;c.lineWidth=.85;
- const lo=Math.max(0,Math.floor((clipTop-400)/680)),hi=Math.ceil((clipTop+clipHeight+400)/680);
- for(let i=lo;i<=hi;i++){const yy=390+i*680;c.globalAlpha=opacity;
+ const t=backgroundTransform(transform),period=680*t.scale,anchorY=390+(t.y-50)/100*h,radius=400*t.scale;
+ const lo=Math.max(0,Math.floor((clipTop-anchorY-radius)/period)),hi=Math.ceil((clipTop+clipHeight-anchorY+radius)/period);
+ for(let i=lo;i<=hi;i++){const yy=anchorY+i*period;if(yy-radius>clipTop+clipHeight||yy+radius<clipTop)continue;c.save();c.globalAlpha=opacity;c.translate(w*t.x/100,yy);c.scale(t.scale,t.scale);c.translate(-w/2,-yy);
   if(isSuppliedRegion(pattern)){
    drawSuppliedRegion(c,pattern,w/2,yy,Math.min(270,w*.36));
-   continue;
+   c.restore();continue;
   }
   if(pattern==='astral'){drawMotif(c,'moon',w/2,yy,145,solid);for(const [x,y] of [[150,yy-170],[w-160,yy+170],[w-190,yy-90]])drawMotif(c,'stars',x,y,20,solid,true,starOuterDiamonds,starDiamondColor);}
   if(pattern==='forest'||pattern==='rose-garden'){for(const side of [65,w-65])for(let n=0;n<4;n++){c.save();c.translate(side,yy-210+n*140);c.rotate(side<w/2?-.5:.5);drawMotif(c,pattern==='forest'?'vines':'roses',0,0,28,solid);c.restore();}}
@@ -45,6 +48,7 @@ export function backgroundArt(c:CanvasRenderingContext2D,pattern:string,elements
    drawMotif(c,'eye',w/2,yy-40,100,solid);for(let j=0;j<4;j++){const y=yy-210+j*130;c.beginPath();c.moveTo(115,y);c.bezierCurveTo(250,y+50,w-250,y-45,w-115,y);c.bezierCurveTo(w-250,y-30,250,y+65,115,y+15);c.closePath();if(solid)c.fill();c.stroke();}for(const x of [65,w-65])drawMotif(c,'vines',x,yy+40,40,solid);
   }
   for(let k=0;k<elements.length;k++){const x=k%2===0?64:w-64;drawMotif(c,elements[k],x,yy-240+Math.floor(k/2)*145,27,solid,true,starOuterDiamonds,starDiamondColor);}
+  c.restore();
  }
  c.restore();
 }

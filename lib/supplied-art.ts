@@ -1,10 +1,11 @@
+import {loadArtwork,artworkAsset} from './asset-loader';
 // These masks contain the supplied pixels, never an automatically traced path.
 // White paper in the four star references is transparent in the masks. Existing
 // holes in all seven designs stay transparent, even when other motifs are solid.
 export const suppliedArtAssets={
- star1:'./artwork/star-1.png',star1Ring:'./artwork/star-1-ring.png',
- star2:'./artwork/star-2.png',star2Ring:'./artwork/star-2-ring.png',
- gnosis:'./artwork/gnosis.png',yierda:'./artwork/yierda.png',esir:'./artwork/esir.png'
+ star1:artworkAsset('star-1.png'),star1Ring:artworkAsset('star-1-ring.png'),
+ star2:artworkAsset('star-2.png'),star2Ring:artworkAsset('star-2-ring.png'),
+ gnosis:artworkAsset('gnosis.png'),yierda:artworkAsset('yierda.png'),esir:artworkAsset('esir.png')
 };
 export const regionArt:Record<string,string>={
  'scholar-orbit':suppliedArtAssets.gnosis,
@@ -18,13 +19,9 @@ export function starLayers(id:string){return id==='stars2'
  :{body:suppliedArtAssets.star1,ring:suppliedArtAssets.star1Ring};}
 const images=new Map<string,HTMLImageElement>();
 const tinted=new Map<string,HTMLCanvasElement>();
-let loading:Promise<void>|undefined;
-export function prepareSuppliedArt(){
+export function prepareSuppliedArt(sources:string[]=Object.values(suppliedArtAssets)){
  if(typeof Image==='undefined')return Promise.resolve();
- if(!loading)loading=Promise.all(Object.values(suppliedArtAssets).map(async src=>{
-  const image=new Image();image.src=src;await image.decode();images.set(src,image);
- })).then(()=>{}).catch(error=>{loading=undefined;throw error;});
- return loading;
+ return Promise.all(sources.map(async src=>{images.set(src,await loadArtwork(src));})).then(()=>{});
 }
 function mask(src:string,color:string){
  const key=src+color,existing=tinted.get(key);if(existing)return existing;

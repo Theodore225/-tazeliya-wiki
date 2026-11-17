@@ -1,12 +1,11 @@
-export const roseAssets:Record<string,string>={roses:'./rose-1.png',roses2:'./rose-2.png'};
+import {loadArtwork,artworkAsset} from './asset-loader';
+export const roseAssets:Record<string,string>={roses:artworkAsset('rose-1.png'),roses2:artworkAsset('rose-2.png')};
 export const isRose=(id:string)=>id==='roses'||id==='roses2';
 const images=new Map<string,HTMLImageElement>();
 const tinted=new Map<string,HTMLCanvasElement>();
-let loading:Promise<void>|undefined;
-export function prepareRoses(){
+export function prepareRoses(ids=Object.keys(roseAssets)){
  if(typeof Image==='undefined')return Promise.resolve();
- if(!loading)loading=Promise.all(Object.entries(roseAssets).map(async([id,src])=>{const image=new Image();image.src=src;await image.decode();images.set(id,image);})).then(()=>{}).catch(error=>{loading=undefined;throw error;});
- return loading;
+ return Promise.all(ids.map(async id=>{images.set(id,await loadArtwork(roseAssets[id]));})).then(()=>{});
 }
 export function drawRose(c:CanvasRenderingContext2D,id:string,x:number,y:number,size:number){
  const source=images.get(id);if(!source)return;
