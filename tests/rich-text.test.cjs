@@ -38,7 +38,7 @@ test('image layout preserves document order, aspect ratio and bounds in pages an
  const doc={type:'doc',content:[...rich.fromPlainText('前文'.repeat(1600)).content,{type:'image',attrs:{src:'blob:test',width:600,height:1800,widthPercent:75,alignment:'right'}},...rich.fromPlainText('最后一段').content]};
  for(const mode of ['pages','long']){const m=manuscript.layoutManuscript({...manuscript.defaults,richText:doc},mode);const runs=m.sheets.flatMap(p=>p.runs);const img=runs.find(r=>r.image);assert(img);assert(Math.abs(img.image.height/img.image.width-3)<.0001);assert(Math.abs(img.x+img.image.width-666)<.0001);assert(runs.indexOf(img)<runs.findIndex(r=>r.text==='最后一段'));if(mode==='pages'){const sheet=m.sheets.find(p=>p.runs.includes(img));assert(img.y>=115);assert(img.y+img.image.height<=975);}else{assert(m.sheets[0].height>1075);assert(img.y+img.image.height<m.sheets[0].height-90);}}
 });
-test('every drawn motif is a deliberate closed vector silhouette while dragon uses recolorable masks from the supplied raster',()=>{assert.equal(new Set(motifs.motifOptions.map(m=>m.id)).size,motifs.motifOptions.length);for(const option of motifs.motifOptions.filter(({id})=>!['dragon','tree','roses','roses2','vines'].includes(id))){const paths=motifs.motifPaths[option.id];assert(paths.length);for(const d of paths)assert(/Z$/.test(d));}assert.equal(motifs.rasterMotifAssets.dragonInk,'./dragon-head-ink.png');assert.equal(motifs.rasterMotifAssets.dragonHighlight,'./dragon-head-highlight.png');});
+test('every drawn motif is a deliberate closed vector silhouette while dragon uses recolorable masks from the supplied raster',()=>{assert.equal(new Set(motifs.motifOptions.map(m=>m.id)).size,motifs.motifOptions.length);for(const option of motifs.motifOptions.filter(({id})=>!['dragon','tree','roses','roses2','vines','stars','stars2'].includes(id))){const paths=motifs.motifPaths[option.id];assert(paths.length);for(const d of paths)assert(/Z$/.test(d));}assert.equal(motifs.rasterMotifAssets.dragonInk,'./dragon-head-ink.png');assert.equal(motifs.rasterMotifAssets.dragonHighlight,'./dragon-head-highlight.png');});
 test('local bold, color, italic and font survive both pagination and long-image layout',()=>{const fragment=[{type:'text',text:'星辰🌙',marks:[{type:'bold'},{type:'textStyle',attrs:{color:'#C23A53',fontFamily:'"ArcaneBrush", serif'}}]},{type:'text',text:'与森林 Avery',marks:[{type:'italic'}]}];const richText={type:'doc',content:[{type:'paragraph',content:Array.from({length:350},()=>fragment).flat()}]};const text=rich.toPlainText(richText);for(const mode of ['pages','long']){const result=manuscript.layoutManuscript({...manuscript.defaults,title:'TITLE',subtitle:'',text,richText},mode);const runs=result.sheets.flatMap(s=>s.runs).filter(r=>!['TITLE','__separator__'].includes(r.text));assert.equal(runs.map(r=>r.text).join(''),text);assert(runs.some(r=>r.bold&&r.color==='#c23a53'&&r.fontFamily.includes('ArcaneBrush')));assert(runs.some(r=>r.italic));if(mode==='long'){assert.equal(result.sheets.length,1);assert(result.sheets[0].height>1075);}else assert(result.sheets.length>1);for(const sheet of result.sheets)for(const run of sheet.runs)assert(run.y<sheet.height-90);}});
 test('explicit selected color wins over quote color and is painted at full opacity',()=>{const richText={type:'doc',content:[{type:'blockquote',content:[{type:'paragraph',content:[{type:'text',text:'红色引文',marks:[{type:'bold'},{type:'textStyle',attrs:{color:'rgb(34, 85, 136)'}}]}]}]}]};const s={...manuscript.defaults,title:'TITLE',subtitle:'',ornament:'none',crest:'none',paper:'white',elements:[],richText};const m=manuscript.layoutManuscript(s);const c=context();manuscript.paintSheet(c,m,m.sheets[0]);const painted=c.calls.find(r=>r.text==='红色引文');assert.equal(painted.color,'#225588');assert.equal(painted.alpha,1);assert(painted.font.startsWith('700 '));assert.equal(rich.opaqueColor('#abc'),'#aabbcc');});
 const decorations=require('../lib/decorations.ts');const frame=require('../lib/paper-frame.ts');
@@ -182,5 +182,47 @@ test('laurel keeps legacy ids and draws independently colored solid and contour 
  motifs.drawMotif(c,'vines',30,40,50,false);assert.equal(calls.length,1);
  motifs.drawMotif(c,'laurel',30,40,50,true);assert.equal(calls.length,3);assert.equal(calls[0][0],calls[2][0]);assert.notEqual(calls[1][0],calls[0][0]);assert.deepEqual(calls[1].slice(1),[-20,-10,100,100]);assert.deepEqual(calls[1].slice(1),calls[2].slice(1));assert(inks.includes('#aabbcc'));assert(inks.includes('#123abc'));
  assert.equal(decorations.normalizeDecoration({id:'old',motif:'laurel',x:50,y:50,size:80,color:'#123abc',solid:true}).motif,'vines');assert(fs.existsSync(path.join(__dirname,'..','public',art.laurelAsset)));
+ }finally{global.Image=oldImage;global.document=oldDocument;}
+});
+
+const suppliedArt=require('../lib/supplied-art.ts');
+test('star variants retain fixed fill semantics and per-copy diamond visibility/color after draft serialization',()=>{
+ for(const [motif,solid]of [['stars',false],['stars2',true]]){
+  const e=decorations.normalizeDecoration({id:motif,motif,color:'#225588',solid:!solid,size:120,x:30,y:40});
+  assert.equal(e.solid,solid);assert.equal(e.starOuterDiamonds,true);
+  const custom=decorations.normalizeDecoration({...e,starOuterDiamonds:false,starDiamondColor:'#ffd500'});
+  assert.deepEqual(decorations.normalizeDecoration(JSON.parse(JSON.stringify(custom))),custom);
+  assert.equal(custom.starOuterDiamonds,false);assert.equal(custom.starDiamondColor,'#ffd500');
+ }
+});
+test('supplied stars and backgrounds recolor existing masks only and render consistently in pages and long images',async()=>{
+ const oldImage=global.Image,oldDocument=global.document;
+ try{
+  global.Image=class{async decode(){}};
+  global.document={createElement(){const canvas={width:0,height:0},ctx=context();ctx.canvas=canvas;ctx.drawImage=image=>{canvas.source=image.src};ctx.fillRect=()=>{canvas.ink=ctx.fillStyle};canvas.getContext=()=>ctx;return canvas}};
+  await suppliedArt.prepareSuppliedArt();
+  const calls=[],c=context();c.drawImage=(image,...rect)=>calls.push({source:image.source,color:image.ink,alpha:c.globalAlpha,rect});
+  c.strokeStyle='#123abc';c.fillStyle='#ff0000';
+  for(const id of ['stars','stars2']){
+   calls.length=0;motifs.drawMotif(c,id,80,90,60,true,true,true,'#ffd500');
+   assert.equal(calls.length,2);assert.equal(calls[0].color,'#123abc');assert.equal(calls[1].color,'#ffd500');
+   assert.deepEqual(calls[0].rect,calls[1].rect);const body=calls[0];
+   calls.length=0;motifs.drawMotif(c,id,80,90,60,false,true,false,'#ff0000');
+   assert.deepEqual(calls,[body]);assert(calls[0].source.includes(id==='stars'?'star-1.png':'star-2.png'));
+  }
+  const worldArt=require('../lib/world-art.ts');
+  for(const [pattern,name]of [['scholar-orbit','gnosis'],['shelter-garden','yierda'],['sacred-sun','esir']]){
+   calls.length=0;worldArt.backgroundArt(c,pattern,[],760,1075,'#225588',.35,0,1075,false,'#ff0000');const hollow=structuredClone(calls);
+   calls.length=0;worldArt.backgroundArt(c,pattern,[],760,1075,'#225588',.35,0,1075,true,'#00ff00');
+   assert.deepEqual(calls,hollow);assert(calls.length>0);assert(calls.every(call=>call.source.endsWith(name+'.png')&&call.color==='#225588'&&call.alpha===.35));
+  }
+  const s={...manuscript.defaults,paper:'white',ornament:'none',pattern:'scholar-orbit',patternOpacity:.15,motifColor:'#abcdef',crest:'stars2',crestOpacity:.4,crestStarOuterDiamonds:true,crestStarDiamondColor:'#0018ff',richText:rich.fromPlainText('导出测试'.repeat(1800)),decorations:[{id:'one',motif:'stars',x:50,y:45,size:120,color:'#445566',solid:false,opacity:.7,starOuterDiamonds:false}]};
+  for(const mode of ['pages','long']){
+   const m=manuscript.layoutManuscript(s,mode);calls.length=0;for(const sheet of m.sheets)manuscript.paintSheet(c,m,sheet);
+   assert(calls.some(call=>call.source.endsWith('star-2-ring.png')&&call.color==='#0018ff'&&call.alpha===.4));
+   assert(calls.some(call=>call.source.endsWith('star-1.png')&&call.color==='#445566'&&call.alpha===.7&&call.rect[2]===120));
+   assert(!calls.some(call=>call.source.endsWith('star-1-ring.png')));
+   assert(calls.some(call=>call.source.endsWith('gnosis.png')&&call.alpha===.15));
+  }
  }finally{global.Image=oldImage;global.document=oldDocument;}
 });

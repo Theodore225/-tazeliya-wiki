@@ -1,7 +1,8 @@
 import {drawLaurel,prepareLaurel} from './laurel-art';
 import {drawRose,prepareRoses,isRose} from './rose-art';
 import {drawLifeTree,prepareLifeTree} from './life-tree';
-export const motifOptions=[{id:'stars',name:'八芒星'},{id:'moon',name:'弦月'},{id:'vines',name:'月桂叶'},{id:'roses',name:'蔷薇1'},{id:'roses2',name:'蔷薇2'},{id:'crystal',name:'棱晶'},{id:'sword',name:'骑士剑'},{id:'butterfly',name:'蝶翼'},{id:'compass',name:'航海罗盘'},{id:'crown',name:'王冠'},{id:'gear',name:'魔导齿轮'},{id:'sun',name:'圣日'},{id:'wing',name:'天使羽翼'},{id:'dragon',name:'龙首'},{id:'book',name:'魔法书'},{id:'tree',name:'生命树'},{id:'home',name:'守护之屋'},{id:'seal',name:'封印'},{id:'eye',name:'幽雾之眼'}];
+import {drawEightPointStar,isEightPointStar,prepareSuppliedArt} from './supplied-art';
+export const motifOptions=[{id:'stars',name:'八芒星1'},{id:'stars2',name:'八芒星2'},{id:'moon',name:'弦月'},{id:'vines',name:'月桂叶'},{id:'roses',name:'蔷薇1'},{id:'roses2',name:'蔷薇2'},{id:'crystal',name:'棱晶'},{id:'sword',name:'骑士剑'},{id:'butterfly',name:'蝶翼'},{id:'compass',name:'航海罗盘'},{id:'crown',name:'王冠'},{id:'gear',name:'魔导齿轮'},{id:'sun',name:'圣日'},{id:'wing',name:'天使羽翼'},{id:'dragon',name:'龙首'},{id:'book',name:'魔法书'},{id:'tree',name:'生命树'},{id:'home',name:'守护之屋'},{id:'seal',name:'封印'},{id:'eye',name:'幽雾之眼'}];
 export const borderOptions=[{id:'none',name:'无边框'},{id:'botanical',name:'月桂卷叶'},{id:'geometric',name:'菱格双线'},{id:'cathedral',name:'尖拱书窗'},{id:'ribbon',name:'斜纹织带'},{id:'cameo',name:'徽章圆角'},{id:'postage',name:'邮票齿边'}];
 export const rasterMotifAssets:Record<string,string>={dragon:'./dragon-head-original.png',dragonInk:'./dragon-head-ink.png',dragonHighlight:'./dragon-head-highlight.png'};
 let dragonInkImage:HTMLImageElement|undefined,dragonHighlightImage:HTMLImageElement|undefined;
@@ -9,13 +10,13 @@ const tintedDragonCache=new Map<string,HTMLCanvasElement>();
 export async function prepareMotifAssets(){
  if(typeof Image==='undefined')return;
  const load=async(image:HTMLImageElement|undefined,src:string)=>{const next=image||new Image();if(next.complete&&next.naturalWidth)return next;next.src=src;if(next.decode)await next.decode();else await new Promise<void>((resolve,reject)=>{next.onload=()=>resolve();next.onerror=()=>reject(new Error('龙首图案载入失败'));});return next;};
- await Promise.all([prepareLifeTree(),prepareRoses(),prepareLaurel()]);
+ await Promise.all([prepareLifeTree(),prepareRoses(),prepareLaurel(),prepareSuppliedArt()]);
  [dragonInkImage,dragonHighlightImage]=await Promise.all([load(dragonInkImage,rasterMotifAssets.dragonInk),load(dragonHighlightImage,rasterMotifAssets.dragonHighlight)]);
 }
 const aliases:Record<string,string>={snow:'stars',constellation:'stars',circle:'compass',astrolabe:'compass',phases:'moon',wings:'wing',gears:'gear',laurel:'vines',key:'sword',hourglass:'crystal'};
 export function motifId(id:string){return aliases[id]||id;}
 export const motifPaths:Record<string,string[]>={
- stars:['M0 -29 L6 -11 L21 -21 L11 -6 L29 0 L11 6 L21 21 L6 11 L0 29 L-6 11 L-21 21 L-11 6 L-29 0 L-11 -6 L-21 -21 L-6 -11 Z','M0 -5 L5 0 L0 5 L-5 0 Z'],
+ stars:[],stars2:[],
  moon:['M13 -27 C-30 -32 -38 19 -5 29 C6 32 16 28 22 21 C-8 25 -22 -10 13 -27 Z'],
  vines:[],
  roses:[],roses2:[],
@@ -40,8 +41,9 @@ export const motifStrokes:Record<string,string[]>={
  tree:[],
  home:['M-18 -7 L-18 -17 L-9 -17 L-9 -14','M-31 -7 L31 -7','M-2 17 L2 17','M0 -25 L0 -16','M-5 -20 L5 -20'],
 };
-export function drawMotif(c:CanvasRenderingContext2D,id:string,x:number,y:number,size:number,solid=false,treeOuterStars=true){
+export function drawMotif(c:CanvasRenderingContext2D,id:string,x:number,y:number,size:number,solid=false,treeOuterStars=true,starOuterDiamonds=true,starDiamondColor?:string){
  const normalized=motifId(id);
+ if(isEightPointStar(normalized)){drawEightPointStar(c,normalized,x,y,size,starOuterDiamonds,starDiamondColor);return;}
  if(normalized==='vines'){drawLaurel(c,x,y,size,solid);return;}
  if(isRose(normalized)){drawRose(c,normalized,x,y,size);return;}
  if(normalized==='tree'){drawLifeTree(c,x,y,size,solid,treeOuterStars);return;}
